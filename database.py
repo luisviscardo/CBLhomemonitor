@@ -93,6 +93,36 @@ def clear_all_history():
         conn.commit()
     print(f"Histórico completamente zerado. Iniciando novo registro a partir de hoje ({today_str}).")
 
+def sync_device_baseline(devices: List[Dict[str, Any]]):
+    """Atualiza o banco com os dados reais de tráfego medidos individualmente por dispositivo no MikroTik."""
+    if not devices:
+        return
+    now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
+
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        for d in devices:
+            mac = d.get("mac-address") or d.get("mac_address", "")
+            mac = mac.upper() if mac else ""
+            if not mac:
+                continue
+            rx = int(d.get("rx_bytes", 0))
+            tx = int(d.get("tx_bytes", 0))
+            tot = rx + tx
+            cursor.execute("""
+                INSERT INTO device_traffic (date, mac_address, ip_address, hostname, device_type, rx_bytes, tx_bytes, total_bytes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(date, mac_address) DO UPDATE SET
+                    ip_address = excluded.ip_address,
+                    hostname = excluded.hostname,
+                    device_type = excluded.device_type,
+                    rx_bytes = excluded.rx_bytes,
+                    tx_bytes = excluded.tx_bytes,
+                    total_bytes = excluded.total_bytes
+            """, (today_str, mac, d.get("address") or d.get("ip_address", ""), d.get("hostname", "Desconhecido"), d.get("type", "device"), rx, tx, tot))
+        conn.commit()
+
 def record_hardware_sample(cpu_load: float, memory_usage_pct: float, free_memory_mb: float, temperature: float, voltage: float):
     """Registra uma amostra de telemetria de hardware no banco de dados."""
     now = datetime.now()
@@ -430,10 +460,36 @@ def get_device_consumption_ranking(period: str = "month") -> Dict[str, Any]:
     ]
 
     for idx, r in enumerate(rows):
-        tot_gb = round(r["total_consumed"] / (1024**3), 2)
-        rx_gb = round(r["total_rx"] / (1024**3), 2)
-        tx_gb = round(r["total_tx"] / (1024**3), 2)
-        percentage = round((r["total_consumed"] / total_network_bytes) * 100, 1)
+        tot_bytes = r["total_consumed"]
+        rx_bytes = r["total_rx"]
+        tx_bytes = r["total_tx"]
+
+        tot_gb = round(tot_bytes / (1024**3), 2)
+        rx_gb = round(rx_bytes / (1024**3), 2)
+        tx_gb = round(tx_bytes / (1024**3), 2)
+        percentage = round((tot_bytes / total_network_bytes) * 100, 1)
+
+        # Formatação adaptativa (GB para tráfego pesado, MB/KB para tráfego leve)
+        if tot_bytes >= 1024**3:
+            formatted_total = f"{round(tot_bytes / (1024**3), 2)} GB"
+        elif tot_bytes >= 1024**2:
+            formatted_total = f"{round(tot_bytes / (1024**2), 1)} MB"
+        else:
+            formatted_total = f"{round(tot_bytes / 1024, 1)} KB"
+
+        if rx_bytes >= 1024**3:
+            formatted_rx = f"{round(rx_bytes / (1024**3), 2)} GB"
+        elif rx_bytes >= 1024**2:
+            formatted_rx = f"{round(rx_bytes / (1024**2), 1)} MB"
+        else:
+            formatted_rx = f"{round(rx_bytes / 1024, 1)} KB"
+
+        if tx_bytes >= 1024**3:
+            formatted_tx = f"{round(tx_bytes / (1024**3), 2)} GB"
+        elif tx_bytes >= 1024**2:
+            formatted_tx = f"{round(tx_bytes / (1024**2), 1)} MB"
+        else:
+            formatted_tx = f"{round(tx_bytes / 1024, 1)} KB"
 
         device_info = {
             "rank": idx + 1,
@@ -444,6 +500,10 @@ def get_device_consumption_ranking(period: str = "month") -> Dict[str, Any]:
             "download_gb": rx_gb,
             "upload_gb": tx_gb,
             "total_gb": tot_gb,
+            "total_bytes_raw": tot_bytes,
+            "formatted_total": formatted_total,
+            "formatted_rx": formatted_rx,
+            "formatted_tx": formatted_tx,
             "percentage": percentage,
             "color": chart_colors[idx % len(chart_colors)]
         }
@@ -452,7 +512,7 @@ def get_device_consumption_ranking(period: str = "month") -> Dict[str, Any]:
         # Dados para o gráfico Donut (Top 6 + Outros)
         if idx < 6:
             chart_labels.append(r["hostname"] or r["ip_address"])
-            chart_data.append(tot_gb)
+            chart_data.append(tot_gb if tot_gb > 0 else round(tot_bytes / (1024**2), 1))
 
     if len(rows) > 6:
         other_bytes = sum(r["total_consumed"] for r in rows[6:])

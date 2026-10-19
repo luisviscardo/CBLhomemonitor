@@ -1099,7 +1099,7 @@ function renderLeaderboard(devices, totalNetworkGb) {
     return;
   }
 
-  const maxDeviceGb = devices[0]?.total_gb || 1;
+  const maxBytes = devices[0]?.total_bytes_raw || ((devices[0]?.total_gb || 0) * 1024 * 1024 * 1024) || 1;
 
   container.innerHTML = devices.map(dev => {
     let medalClass = '';
@@ -1120,8 +1120,12 @@ function renderLeaderboard(devices, totalNetworkGb) {
       itemSpecialClass = 'rank-top-3';
     }
 
-    // Progresso relativo ao top 1
-    const progressPct = Math.min(100, Math.round((dev.total_gb / maxDeviceGb) * 100));
+    // Progresso relativo ao dispositivo líder (Top 1)
+    const devBytes = dev.total_bytes_raw || ((dev.total_gb || 0) * 1024 * 1024 * 1024);
+    const progressPct = maxBytes > 0 ? Math.min(100, Math.max(devBytes > 0 ? 4 : 0, Math.round((devBytes / maxBytes) * 100))) : 0;
+    const displayTotal = dev.formatted_total || `${dev.total_gb} GB`;
+    const displayDl = dev.formatted_rx ? `↓ ${dev.formatted_rx}` : `↓ ${dev.download_gb} GB`;
+    const displayUl = dev.formatted_tx ? `↑ ${dev.formatted_tx}` : `↑ ${dev.upload_gb} GB`;
 
     return `
       <div class="leaderboard-item ${itemSpecialClass}">
@@ -1143,11 +1147,11 @@ function renderLeaderboard(devices, totalNetworkGb) {
 
           <div class="rank-right">
             <div class="rank-metrics-breakdown">
-              <span class="rank-stat-dl" title="Download">↓ ${dev.download_gb} GB</span>
-              <span class="rank-stat-ul" title="Upload">↑ ${dev.upload_gb} GB</span>
+              <span class="rank-stat-dl" title="Download">${displayDl}</span>
+              <span class="rank-stat-ul" title="Upload">${displayUl}</span>
             </div>
             <div class="rank-total-badge" title="Consumo Total">
-              ${dev.total_gb} GB
+              ${displayTotal}
             </div>
             <span class="rank-percent-pill" title="Participação no Tráfego Total">
               ${dev.percentage}%

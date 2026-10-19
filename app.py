@@ -17,7 +17,8 @@ from database import (
     get_daily_history,
     get_monthly_history,
     get_device_consumption_ranking,
-    record_traffic_sample
+    record_traffic_sample,
+    sync_device_baseline
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -204,9 +205,10 @@ async def api_clear_history():
 prev_wan_rx = 0
 prev_wan_tx = 0
 last_hw_sample_time = 0.0
+device_baseline_synced = False
 
 def process_traffic_accounting(data: dict):
-    global prev_wan_rx, prev_wan_tx, last_hw_sample_time
+    global prev_wan_rx, prev_wan_tx, last_hw_sample_time, device_baseline_synced
     import time
     from database import record_hardware_sample
 
@@ -226,7 +228,16 @@ def process_traffic_accounting(data: dict):
         except Exception as e:
             logger.debug(f"Erro ao salvar amostra de hardware: {e}")
 
-    # 2. Contabilização de tráfego WAN e dispositivos
+    # 2. Sincronização inicial da linha de base de dispositivos a partir do conntrack
+    devices = data.get("devices", [])
+    if devices and not device_baseline_synced:
+        has_real_bytes = any(d.get("total_bytes", 0) > 0 for d in devices)
+        if has_real_bytes:
+            sync_device_baseline(devices)
+            device_baseline_synced = True
+            logger.info("Linha de base de consumo individual dos dispositivos sincronizada com sucesso a partir do MikroTik.")
+
+    # 3. Contabilização de tráfego WAN e distribuição proporcional por atividade real
     traffic = data.get("traffic", {})
     curr_rx = traffic.get("total_rx_bytes", 0)
     curr_tx = traffic.get("total_tx_bytes", 0)
@@ -236,21 +247,37 @@ def process_traffic_accounting(data: dict):
         delta_tx = curr_tx - prev_wan_tx
 
         if delta_rx > 0 or delta_tx > 0:
-            devices = data.get("devices", [])
             dev_deltas = []
             if devices:
-                num_devs = len(devices)
-                part_rx = delta_rx // num_devs
-                part_tx = delta_tx // num_devs
+                # Pesa cada aparelho de acordo com sua atividade real no MikroTik
+                # (Bytes transferidos nas conexões ativas + taxa instantânea + número de conexões)
+                weights = []
                 for dev in devices:
-                    dev_deltas.append({
-                        "mac_address": dev.get("mac-address") or dev.get("mac_address"),
-                        "ip_address": dev.get("address") or dev.get("ip_address"),
-                        "hostname": dev.get("hostname", "Dispositivo"),
-                        "device_type": dev.get("type", "device"),
-                        "rx_bytes": part_rx,
-                        "tx_bytes": part_tx
-                    })
+                    dev_b = dev.get("total_bytes", 0)
+                    dev_r = dev.get("current_rate_rx", 0) + dev.get("current_rate_tx", 0)
+                    dev_c = dev.get("active_conns", 0)
+                    w = (dev_b / 1024.0) + (dev_r * 2.0) + (dev_c * 50.0)
+                    weights.append(w)
+
+                total_w = sum(weights)
+                if total_w > 0:
+                    for dev, w in zip(devices, weights):
+                        if w <= 0:
+                            part_rx = 0
+                            part_tx = 0
+                        else:
+                            ratio = w / total_w
+                            part_rx = int(delta_rx * ratio)
+                            part_tx = int(delta_tx * ratio)
+
+                        dev_deltas.append({
+                            "mac_address": dev.get("mac-address") or dev.get("mac_address"),
+                            "ip_address": dev.get("address") or dev.get("ip_address"),
+                            "hostname": dev.get("hostname", "Dispositivo"),
+                            "device_type": dev.get("type", "device"),
+                            "rx_bytes": part_rx,
+                            "tx_bytes": part_tx
+                        })
             record_traffic_sample(delta_rx, delta_tx, dev_deltas)
 
     prev_wan_rx = curr_rx

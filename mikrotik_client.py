@@ -188,11 +188,15 @@ class MikroTikClient:
     async def get_connected_devices(self) -> List[Dict[str, Any]]:
         leases_task = self._request("GET", "/ip/dhcp-server/lease")
         arp_task = self._request("GET", "/ip/arp")
+        conns_task = self._request("GET", "/ip/firewall/connection")
         
-        raw_leases, raw_arp = await asyncio.gather(leases_task, arp_task, return_exceptions=True)
+        raw_leases, raw_arp, raw_conns = await asyncio.gather(
+            leases_task, arp_task, conns_task, return_exceptions=True
+        )
 
         devices_by_mac = {}
 
+        # 1. Leases DHCP
         if isinstance(raw_leases, list):
             for lease in raw_leases:
                 mac = lease.get("mac-address", "").upper()
@@ -210,9 +214,16 @@ class MikroTikClient:
                     "comment": lease.get("comment", ""),
                     "expires-after": lease.get("expires-after", ""),
                     "type": dev_type,
-                    "vendor": ""
+                    "vendor": "",
+                    "rx_bytes": 0,
+                    "tx_bytes": 0,
+                    "total_bytes": 0,
+                    "current_rate_rx": 0,
+                    "current_rate_tx": 0,
+                    "active_conns": 0
                 }
 
+        # 2. Tabela ARP
         if isinstance(raw_arp, list):
             for entry in raw_arp:
                 mac = entry.get("mac-address", "").upper()
@@ -230,8 +241,70 @@ class MikroTikClient:
                         "dynamic": entry.get("dynamic", "true"),
                         "comment": entry.get("comment", ""),
                         "type": "device",
-                        "vendor": ""
+                        "vendor": "",
+                        "rx_bytes": 0,
+                        "tx_bytes": 0,
+                        "total_bytes": 0,
+                        "current_rate_rx": 0,
+                        "current_rate_tx": 0,
+                        "active_conns": 0
                     }
+
+        # 3. Connection Tracking Real por IP
+        ip_stats = {}
+        if isinstance(raw_conns, list):
+            for c in raw_conns:
+                src = c.get("src-address", "")
+                dst = c.get("dst-address", "")
+                src_ip = src.split(":")[0] if ":" in src else src
+                dst_ip = dst.split(":")[0] if ":" in dst else dst
+
+                ip = None
+                is_orig_src = False
+                if src_ip.startswith("192.168.") or src_ip.startswith("10.") or src_ip.startswith("172.16."):
+                    ip = src_ip
+                    is_orig_src = True
+                elif dst_ip.startswith("192.168.") or dst_ip.startswith("10.") or dst_ip.startswith("172.16."):
+                    ip = dst_ip
+                    is_orig_src = False
+
+                if ip:
+                    if ip not in ip_stats:
+                        ip_stats[ip] = {
+                            "rx_bytes": 0,
+                            "tx_bytes": 0,
+                            "rate_rx": 0,
+                            "rate_tx": 0,
+                            "active_conns": 0
+                        }
+                    orig_b = int(c.get("orig-bytes", 0)) + int(c.get("orig-fasttrack-bytes", 0))
+                    repl_b = int(c.get("repl-bytes", 0)) + int(c.get("repl-fasttrack-bytes", 0))
+                    orig_r = int(c.get("orig-rate", 0))
+                    repl_r = int(c.get("repl-rate", 0))
+
+                    ip_stats[ip]["active_conns"] += 1
+                    if is_orig_src:
+                        ip_stats[ip]["tx_bytes"] += orig_b
+                        ip_stats[ip]["rx_bytes"] += repl_b
+                        ip_stats[ip]["rate_tx"] += orig_r
+                        ip_stats[ip]["rate_rx"] += repl_r
+                    else:
+                        ip_stats[ip]["rx_bytes"] += orig_b
+                        ip_stats[ip]["tx_bytes"] += repl_b
+                        ip_stats[ip]["rate_rx"] += orig_r
+                        ip_stats[ip]["rate_tx"] += repl_r
+
+        # 4. Acoplar métricas reais a cada dispositivo cadastrado
+        for dev in devices_by_mac.values():
+            ip = dev.get("address")
+            if ip in ip_stats:
+                st = ip_stats[ip]
+                dev["rx_bytes"] = st["rx_bytes"]
+                dev["tx_bytes"] = st["tx_bytes"]
+                dev["total_bytes"] = st["rx_bytes"] + st["tx_bytes"]
+                dev["current_rate_rx"] = st["rate_rx"]
+                dev["current_rate_tx"] = st["rate_tx"]
+                dev["active_conns"] = st["active_conns"]
 
         return list(devices_by_mac.values())
 

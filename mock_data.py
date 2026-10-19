@@ -290,7 +290,18 @@ def get_mock_snapshot():
             "ping_latency_ms": round(14.2 + random.uniform(-1.5, 3.2), 1)
         },
         "interfaces": interfaces,
-        "devices": MOCK_DEVICES,
+        "devices": [
+            {
+                **dev,
+                "rx_bytes": int(total_rx_bytes * [0.42, 0.26, 0.14, 0.09, 0.05, 0.03, 0.007, 0.002, 0.001][idx % 9]),
+                "tx_bytes": int(total_tx_bytes * [0.46, 0.22, 0.05, 0.12, 0.08, 0.06, 0.006, 0.003, 0.001][idx % 9]),
+                "total_bytes": int(total_rx_bytes * [0.42, 0.26, 0.14, 0.09, 0.05, 0.03, 0.007, 0.002, 0.001][idx % 9]) + int(total_tx_bytes * [0.46, 0.22, 0.05, 0.12, 0.08, 0.06, 0.006, 0.003, 0.001][idx % 9]),
+                "current_rate_rx": int(rx_bps * [0.40, 0.25, 0.15, 0.10, 0.05, 0.03, 0.01, 0.005, 0.005][idx % 9]),
+                "current_rate_tx": int(tx_bps * [0.45, 0.20, 0.05, 0.15, 0.08, 0.05, 0.01, 0.005, 0.005][idx % 9]),
+                "active_conns": [42, 28, 14, 9, 6, 4, 2, 1, 1][idx % 9]
+            }
+            for idx, dev in enumerate(MOCK_DEVICES)
+        ],
         "logs": logs
     }
 
