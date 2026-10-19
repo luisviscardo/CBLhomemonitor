@@ -14,6 +14,11 @@ __pycache__/
 venv/
 ENV/
 
+# PyInstaller & Releases
+build/
+dist/
+*.spec
+
 # Sistema Operacional e IDEs
 .DS_Store
 Thumbs.db

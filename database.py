@@ -4,7 +4,9 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 
-DB_PATH = Path(__file__).parent / "history.db"
+from config import get_app_dir
+
+DB_PATH = get_app_dir() / "history.db"
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)

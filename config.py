@@ -1,12 +1,20 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel
 
-CONFIG_FILE = Path(__file__).parent / "config.json"
+def get_app_dir() -> Path:
+    """Retorna o diretório base da aplicação (compatível com modo script e executável PyInstaller)."""
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+CONFIG_FILE = get_app_dir() / "config.json"
 
 class RouterConfig(BaseModel):
+    # MikroTik RouterOS
     router_ip: str = "192.168.88.1"
     port: int = 80
     use_https: bool = False
@@ -15,7 +23,12 @@ class RouterConfig(BaseModel):
     password: str = ""
     wan_interface: str = "ether1"
     poll_interval: float = 2.0
-    demo_mode: bool = True  # Inicia com dados realistas se o roteador não estiver acessível
+    demo_mode: bool = False
+
+    # Servidor Web & Painel
+    server_host: str = "0.0.0.0"
+    server_port: int = 8000
+    autostart: bool = False
 
     # Notificações via Telegram
     telegram_enabled: bool = False

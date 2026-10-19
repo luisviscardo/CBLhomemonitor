@@ -1,12 +1,16 @@
 @echo off
-title CBLhomemonitor - Monitor de Rede Residencial
+chcp 65001 >nul
+title CBLhomemonitor - Serviço de Monitoramento
 cd /d "%~dp0"
 echo ===================================================================
-echo     CBLHOMEMONITOR - MONITOR DE REDE RESIDENCIAL
+echo     ⚡ CBLhomemonitor - Monitor Residencial MikroTik
 echo ===================================================================
 echo.
-echo Abrindo em http://localhost:8000
-echo Pressione Ctrl+C no terminal para encerrar o servidor.
+echo Iniciando o serviço com ícone na barra de tarefas (System Tray)...
 echo.
-python -m uvicorn app:app --host 0.0.0.0 --port 8000 --reload
-pause
+start "" pythonw tray_app.py
+echo [OK] O CBLhomemonitor está ativo na bandeja do sistema ao lado do relógio.
+echo Clique com o botão direito no ícone para gerenciar ou configurar.
+echo.
+timeout /t 3 >nul
+exit /b 0
