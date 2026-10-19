@@ -99,7 +99,7 @@ class CBLTrayApp:
         if self.icon:
             self.icon.icon = self._get_icon_image(active=True)
             self.icon.title = f"CBLhomemonitor ⚡ - Serviço Ativo (Porta {port})"
-            self.icon.update_menu()
+            self.icon.menu = self._build_menu()
             try:
                 self.icon.notify(f"Serviço em segundo plano ativo na porta {port}!", "CBLhomemonitor ⚡")
             except Exception:
@@ -114,7 +114,7 @@ class CBLTrayApp:
         if self.icon:
             self.icon.icon = self._get_icon_image(active=False)
             self.icon.title = "CBLhomemonitor ⚡ - Serviço Parado"
-            self.icon.update_menu()
+            self.icon.menu = self._build_menu()
             try:
                 self.icon.notify("Serviço de monitoramento pausado.", "CBLhomemonitor ⚡")
             except Exception:
@@ -152,7 +152,7 @@ class CBLTrayApp:
         current = is_autostart_enabled()
         set_autostart(not current)
         if self.icon:
-            self.icon.update_menu()
+            self.icon.menu = self._build_menu()
 
     def exit_app(self):
         """Encerra completamente o serviço e o app de bandeja."""
@@ -189,7 +189,7 @@ class CBLTrayApp:
             name="CBLhomemonitor",
             icon=self._get_icon_image(active=True),
             title="CBLhomemonitor ⚡ - Monitor Residencial MikroTik",
-            menu=self._build_menu
+            menu=self._build_menu()
         )
 
         # Executa o loop de eventos da bandeja do sistema
