@@ -48,6 +48,23 @@ python build_exe.py
 
 ---
 
+## 📸 Telas do Sistema
+
+<div align="center">
+  <h4>Painel Principal — Gráfico de Tráfego WAN em Tempo Real & Métricas</h4>
+  <img src="docs/screenshots/screenshot-dashboard-main.png" alt="Painel Principal - Tráfego em Tempo Real" width="95%" />
+  <br/><br/>
+
+  <h4>Dispositivos Conectados na Casa & Logs do RouterOS</h4>
+  <img src="docs/screenshots/screenshot-devices-logs.png" alt="Dispositivos Conectados e Logs do Sistema" width="95%" />
+  <br/><br/>
+
+  <h4>Histórico de Uso, Telemetria de Hardware (CPU/RAM/Temp) & Ranking de Consumo</h4>
+  <img src="docs/screenshots/screenshot-telemetry-ranking.png" alt="Telemetria de Hardware e Ranking de Consumo" width="95%" />
+</div>
+
+---
+
 ## 🌟 Principais Recursos
 
 - **Serviço Contínuo 24/7 em Segundo Plano:** O monitoramento roda como um serviço autônomo, coletando dados, calculando tráfego por aparelho e vigiando a rede mesmo quando o navegador está fechado.
