@@ -38,6 +38,7 @@ class ServerThread(threading.Thread):
 
     def run(self):
         try:
+            import traceback
             import uvicorn
             from app import app
             config = uvicorn.Config(
@@ -45,12 +46,19 @@ class ServerThread(threading.Thread):
                 host=self.host,
                 port=self.port,
                 log_level="warning",
-                access_log=False
+                access_log=False,
+                log_config=None
             )
             self.server = uvicorn.Server(config)
             self.is_running = True
             self.server.run()
         except Exception as e:
+            try:
+                err_file = get_app_dir() / "service_error.log"
+                with open(err_file, "a", encoding="utf-8") as f:
+                    f.write(f"Erro no servidor uvicorn: {e}\n{traceback.format_exc()}\n")
+            except Exception:
+                pass
             print(f"Erro no servidor uvicorn: {e}")
         finally:
             self.is_running = False

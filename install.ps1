@@ -126,8 +126,10 @@ $s2.Save()
 
 Write-Host "      Atalhos criados com sucesso!" -ForegroundColor Green
 
-# Iniciar o servico
+# Iniciar o servico (encerrando instancia anterior caso esteja travada)
 Write-Host "[*] Iniciando o CBLhomemonitor na Barra de Tarefas..." -ForegroundColor Yellow
+Stop-Process -Name "CBLhomemonitor" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Milliseconds 500
 if ($exePath) {
     Start-Process -FilePath $exePath -WorkingDirectory $workDir
 } else {
