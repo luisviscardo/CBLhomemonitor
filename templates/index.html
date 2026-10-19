@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CBLhomemonitor | Monitor de Rede Residencial</title>
+  <meta name="description" content="Dashboard de monitoramento de rede residencial em tempo real com MikroTik RouterOS.">
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="theme-dark">
+  <div class="app-background">
+    <div class="ambient-glow glow-1"></div>
+    <div class="ambient-glow glow-2"></div>
+    <div class="ambient-glow glow-3"></div>
+  </div>
+
+  <div class="layout-wrapper">
+    <!-- TOP NAVIGATION / HEADER -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-mark" title="CBLhomemonitor">
+          <svg class="brand-svg-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="cblGradHdr" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00f0ff" />
+                <stop offset="100%" stop-color="#a855f7" />
+              </linearGradient>
+              <linearGradient id="cblBgHdr" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="rgba(0, 240, 255, 0.12)" />
+                <stop offset="100%" stop-color="rgba(168, 85, 247, 0.12)" />
+              </linearGradient>
+            </defs>
+            <polygon points="24,3 43,10 43,28 24,45 5,28 5,10" 
+                     fill="url(#cblBgHdr)" 
+                     stroke="url(#cblGradHdr)" 
+                     stroke-width="2.2" 
+                     stroke-linejoin="round" />
+            <path d="M15 27V21L24 14L33 21V27C33 28.1 32.1 29 31 29H17C15.9 29 15 28.1 15 27Z" 
+                  stroke="url(#cblGradHdr)" 
+                  stroke-width="2.2" 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round"
+                  fill="rgba(15, 23, 42, 0.7)" />
+            <line x1="29" y1="18" x2="29" y2="13" stroke="#00f0ff" stroke-width="2" stroke-linecap="round" />
+            <circle cx="29" cy="11.5" r="1.5" fill="#00f0ff" />
+            <path d="M19 23C20.4 21.6 22.1 20.8 24 20.8C25.9 20.8 27.6 21.6 29 23" 
+                  stroke="#00f0ff" 
+                  stroke-width="2" 
+                  stroke-linecap="round" />
+            <path d="M21.2 25.2C21.9 24.5 22.9 24 24 24C25.1 24 26.1 24.5 26.8 25.2" 
+                  stroke="#a855f7" 
+                  stroke-width="2" 
+                  stroke-linecap="round" />
+            <circle cx="24" cy="27" r="1.5" fill="#00f0ff" />
+          </svg>
+          <span class="pulse-radar"></span>
+        </div>
+        <div class="brand-text">
+          <div class="brand-title">
+            <span class="brand-name">CBL</span><span class="brand-subname">home</span>
+            <span class="brand-tag">MONITOR</span>
+          </div>
+          <span class="brand-subtitle" id="top-board-name">Carregando hardware...</span>
+        </div>
+      </div>
+
+      <div class="top-status-bar">
+        <div class="status-pill" id="connection-status-pill">
+          <span class="status-dot"></span>
+          <span class="status-text" id="connection-status-label">Conectando...</span>
+        </div>
+
+        <div class="info-pill" title="Tempo de atividade contínua">
+          <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span class="pill-val" id="top-uptime">--</span>
+        </div>
+
+        <div class="info-pill" title="Versão do RouterOS">
+          <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+          <span class="pill-val" id="top-routeros-version">RouterOS v7</span>
+        </div>
+      </div>
+
+      <div class="top-actions">
+        <button class="btn btn-glass" id="btn-open-ping" title="Diagnóstico de Ping">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <span>Ping Tool</span>
+        </button>
+
+        <button class="btn btn-glass" id="btn-open-guide" title="Guia de Configuração no MikroTik">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <span>Guia MikroTik</span>
+        </button>
+
+        <button class="btn btn-primary" id="btn-open-settings" title="Configurações de Conexão">
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span>Conexão</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ALERTA DE MODO DEMO / FALLBACK -->
+    <div id="demo-banner" class="banner-notice hidden">
+      <div class="banner-content">
+        <svg class="banner-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="demo-banner-text">Você está no <strong>Modo Simulação (Demo)</strong> com dados realistas. Clique em <em>Conexão</em> para apontar para o IP do seu roteador MikroTik.</span>
+      </div>
+      <button class="banner-action-btn" onclick="openModal('settings-modal')">Configurar MikroTik</button>
+    </div>
+
+    <!-- MAIN DASHBOARD CONTENT -->
+    <main class="dashboard-grid">
+      
+      <!-- KPI STATS CARDS -->
+      <section class="kpi-row">
+        <!-- Download Rate -->
+        <div class="card kpi-card kpi-download">
+          <div class="kpi-header">
+            <span class="kpi-title">Download Atual</span>
+            <div class="kpi-icon-badge badge-cyan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-download-val">0.0</span>
+            <span class="kpi-unit">Mbps</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">Total Acumulado:</span>
+            <span class="kpi-sub-val" id="kpi-total-rx">0.0 GB</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-cyan" id="meter-dl"></div></div>
+        </div>
+
+        <!-- Upload Rate -->
+        <div class="card kpi-card kpi-upload">
+          <div class="kpi-header">
+            <span class="kpi-title">Upload Atual</span>
+            <div class="kpi-icon-badge badge-violet">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="12" y1="19" x2="12" y2="5"></line>
+                <polyline points="5 12 12 5 19 12"></polyline>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-upload-val">0.0</span>
+            <span class="kpi-unit">Mbps</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">Total Acumulado:</span>
+            <span class="kpi-sub-val" id="kpi-total-tx">0.0 GB</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-violet" id="meter-ul"></div></div>
+        </div>
+
+        <!-- CPU Load -->
+        <div class="card kpi-card kpi-cpu">
+          <div class="kpi-header">
+            <span class="kpi-title">Uso de CPU</span>
+            <div class="kpi-icon-badge badge-amber">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect>
+                <rect x="9" y="9" width="6" height="6"></rect>
+                <line x1="9" y1="1" x2="9" y2="4"></line>
+                <line x1="15" y1="1" x2="15" y2="4"></line>
+                <line x1="9" y1="20" x2="9" y2="23"></line>
+                <line x1="15" y1="20" x2="15" y2="23"></line>
+                <line x1="20" y1="9" x2="23" y2="9"></line>
+                <line x1="20" y1="14" x2="23" y2="14"></line>
+                <line x1="1" y1="9" x2="4" y2="9"></line>
+                <line x1="1" y1="14" x2="4" y2="14"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-cpu-val">0</span>
+            <span class="kpi-unit">%</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub" id="kpi-cpu-cores">4 Cores @ 1400MHz</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-amber" id="meter-cpu"></div></div>
+        </div>
+
+        <!-- RAM Usage -->
+        <div class="card kpi-card kpi-ram">
+          <div class="kpi-header">
+            <span class="kpi-title">Memória RAM</span>
+            <div class="kpi-icon-badge badge-emerald">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 19v-3"></path>
+                <path d="M10 19v-3"></path>
+                <path d="M14 19v-3"></path>
+                <path d="M18 19v-3"></path>
+                <path d="M6 8V5"></path>
+                <path d="M10 8V5"></path>
+                <path d="M14 8V5"></path>
+                <path d="M18 8V5"></path>
+                <rect x="2" y="8" width="20" height="8" rx="1"></rect>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-ram-val">0</span>
+            <span class="kpi-unit">%</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub" id="kpi-ram-detail">0 MB livre</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-emerald" id="meter-ram"></div></div>
+        </div>
+
+        <!-- Active Devices -->
+        <div class="card kpi-card kpi-devices">
+          <div class="kpi-header">
+            <span class="kpi-title">Dispositivos Conectados</span>
+            <div class="kpi-icon-badge badge-blue">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-devices-count">0</span>
+            <span class="kpi-unit">ativos</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">DHCP Leases + ARP</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-blue" style="width: 100%;"></div></div>
+        </div>
+
+        <!-- Internet / WAN Latency -->
+        <div class="card kpi-card kpi-ping">
+          <div class="kpi-header">
+            <span class="kpi-title">Latência Internet (DNS)</span>
+            <div class="kpi-icon-badge badge-rose">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"></path>
+                <path d="M2 12h20"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-value-group">
+            <span class="kpi-num" id="kpi-latency-val">--</span>
+            <span class="kpi-unit">ms</span>
+          </div>
+          <div class="kpi-footer">
+            <span class="kpi-sub">IP WAN:</span>
+            <span class="kpi-sub-val" id="kpi-wan-ip">--</span>
+          </div>
+          <div class="kpi-meter-bg"><div class="kpi-meter-fill meter-rose" style="width: 100%;"></div></div>
+        </div>
+      </section>
+
+      <!-- CHARTS & HARDWARE DETAILS ROW -->
+      <section class="traffic-section">
+        <div class="card chart-card">
+          <div class="card-header">
+            <div class="header-left">
+              <h2 class="section-title">Tráfego de Rede em Tempo Real</h2>
+              <span class="section-desc">Fluxo contínuo de Download e Upload na interface WAN (<span id="active-interface-label">ether1</span>)</span>
+            </div>
+            <div class="header-right chart-controls">
+              <div class="legend-indicator">
+                <span class="legend-dot dot-cyan"></span>
+                <span>Download</span>
+              </div>
+              <div class="legend-indicator">
+                <span class="legend-dot dot-violet"></span>
+                <span>Upload</span>
+              </div>
+              <button class="btn btn-sm btn-glass" id="btn-toggle-pause">Pausar</button>
+            </div>
+          </div>
+          <div class="chart-canvas-container">
+            <canvas id="trafficChart"></canvas>
+          </div>
+        </div>
+
+        <!-- ROUTER HARDWARE INFO CARD -->
+        <div class="card hardware-card">
+          <div class="card-header">
+            <h2 class="section-title">Informações do Roteador</h2>
+          </div>
+          <div class="hardware-specs-list">
+            <div class="spec-item">
+              <span class="spec-label">Identidade:</span>
+              <span class="spec-val highlight" id="spec-identity">--</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Modelo:</span>
+              <span class="spec-val" id="spec-model">--</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Versão Firmware:</span>
+              <span class="spec-val" id="spec-firmware">--</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Processador:</span>
+              <span class="spec-val" id="spec-cpu">--</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Arquitetura:</span>
+              <span class="spec-val" id="spec-arch">--</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Temperatura:</span>
+              <span class="spec-val" id="spec-temp">-- °C</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Gateway Padrão:</span>
+              <span class="spec-val font-mono" id="spec-gateway">--</span>
+            </div>
+          </div>
+        </div>
+      <!-- HISTÓRICO DE TELEMETRIA DE HARDWARE -->
+      <section class="section-block">
+        <div class="card history-card hardware-history-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="title-with-badge">
+                <h2 class="section-title">Histórico de Telemetria de Hardware</h2>
+                <span class="live-tag">HARDWARE TELEMETRY</span>
+              </div>
+              <span class="section-desc">Evolução temporal de Carga da CPU, Consumo de RAM, Temperatura e Voltagem</span>
+            </div>
+            <div class="header-right history-controls">
+              <!-- Alternar entre CPU/RAM e Temperatura/Voltagem -->
+              <div class="view-toggle-group">
+                <button class="toggle-btn active" id="btn-hw-metric-cpu" data-metric="cpu_ram">CPU & RAM (%)</button>
+                <button class="toggle-btn" id="btn-hw-metric-temp" data-metric="temp_volt">Temp & Voltagem (°C / V)</button>
+              </div>
+
+              <!-- Timeframe -->
+              <div class="ranking-period-filters">
+                <button class="hw-timeframe-btn active" data-timeframe="1h">1 Hora</button>
+                <button class="hw-timeframe-btn" data-timeframe="6h">6 Horas</button>
+                <button class="hw-timeframe-btn" data-timeframe="24h">24 Horas</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hardware KPI Chips -->
+          <div class="history-kpis-strip">
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">CPU (Média / Pico)</span>
+              <span class="hist-kpi-val highlight-amber" id="hw-cpu-kpi">-- % / -- %</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">RAM (Média / Pico)</span>
+              <span class="hist-kpi-val highlight-cyan" id="hw-ram-kpi">-- % / -- %</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Temperatura (Média / Pico)</span>
+              <span class="hist-kpi-val" id="hw-temp-kpi">-- °C / -- °C</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Voltagem Média</span>
+              <span class="hist-kpi-val" id="hw-volt-kpi">-- V</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Amostras Coletadas</span>
+              <span class="hist-kpi-val" id="hw-samples-count">--</span>
+            </div>
+          </div>
+
+          <!-- Gráfico de Hardware -->
+          <div class="history-chart-container">
+            <canvas id="hardwareHistoryChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- HISTÓRICO DE CONSUMO (DIÁRIO E MENSAL) -->
+      <section class="section-block">
+        <div class="card history-card">
+          <div class="card-header">
+            <div class="header-left">
+              <div class="title-with-badge">
+                <h2 class="section-title">Histórico de Uso da Internet</h2>
+                <span class="live-tag">BANCO HISTÓRICO</span>
+              </div>
+              <span class="section-desc">Volume acumulado de dados transferidos (Download e Upload em Gigabytes)</span>
+            </div>
+            <div class="header-right history-controls">
+              <div class="view-toggle-group">
+                <button class="toggle-btn active" id="btn-hist-daily" data-period="daily">Diário (30 Dias)</button>
+                <button class="toggle-btn" id="btn-hist-monthly" data-period="monthly">Mensal (12 Meses)</button>
+              </div>
+              <button class="btn btn-sm btn-glass btn-danger-subtle" id="btn-clear-history" title="Zerar todo o histórico e iniciar gravação a partir de hoje">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18"></path>
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+                </svg>
+                <span>Zerar Histórico</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Histórico KPI Chips -->
+          <div class="history-kpis-strip">
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Consumo Total</span>
+              <span class="hist-kpi-val highlight-cyan" id="hist-total-gb">-- GB</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Total Download</span>
+              <span class="hist-kpi-val" id="hist-rx-gb">-- GB</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label">Total Upload</span>
+              <span class="hist-kpi-val" id="hist-tx-gb">-- GB</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label" id="hist-avg-label">Média Diária</span>
+              <span class="hist-kpi-val" id="hist-avg-gb">-- GB</span>
+            </div>
+            <div class="hist-kpi-item">
+              <span class="hist-kpi-label" id="hist-peak-label">Dia de Pico</span>
+              <span class="hist-kpi-val highlight-amber" id="hist-peak-val">--</span>
+            </div>
+          </div>
+
+          <!-- Gráfico de Histórico -->
+          <div class="history-chart-container">
+            <canvas id="historyChart"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- CONSUMO POR DISPOSITIVO & RANKING (LEADERBOARD) -->
+      <section class="section-block">
+        <div class="devices-consumption-grid">
+          
+          <!-- Coluna Esquerda: Gráfico de Pizza/Donut por Dispositivo -->
+          <div class="card device-chart-card">
+            <div class="card-header">
+              <div>
+                <h2 class="section-title">Distribuição por Dispositivo</h2>
+                <span class="section-desc">Participação percentual no consumo de banda</span>
+              </div>
+            </div>
+            <div class="donut-chart-wrapper">
+              <div class="donut-canvas-container">
+                <canvas id="deviceDonutChart"></canvas>
+                <div class="donut-center-text">
+                  <span class="donut-center-val" id="donut-total-gb">--</span>
+                  <span class="donut-center-sub">GB Total</span>
+                </div>
+              </div>
+            </div>
+            <div class="device-shares-legend" id="device-shares-legend">
+              <!-- Preenchido via JS -->
+            </div>
+          </div>
+
+          <!-- Coluna Direita: Ranking de Consumo (Leaderboard) -->
+          <div class="card leaderboard-card">
+            <div class="card-header">
+              <div>
+                <div class="title-with-badge">
+                  <h2 class="section-title">Ranking de Dispositivos por Consumo</h2>
+                  <span class="ranking-trophy">🏆</span>
+                </div>
+                <span class="section-desc">Os maiores consumidores de dados da sua rede</span>
+              </div>
+              <div class="ranking-period-filters">
+                <button class="rank-filter-btn" data-period="today">Hoje</button>
+                <button class="rank-filter-btn" data-period="7days">7 Dias</button>
+                <button class="rank-filter-btn active" data-period="month">Mês (30d)</button>
+              </div>
+            </div>
+
+            <!-- Lista de Dispositivos no Ranking -->
+            <div class="leaderboard-list" id="leaderboard-list">
+              <!-- Renderizado dinamicamente via JS -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- NETWORK INTERFACES GRID -->
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <h2 class="section-title">Interfaces de Rede (Portas Ethernet & Wi-Fi)</h2>
+            <span class="section-desc">Status da porta física, taxa de transmissão e erros de pacotes</span>
+          </div>
+          <span class="counter-badge" id="interfaces-count-badge">0 Interfaces</span>
+        </div>
+        <div class="interfaces-grid" id="interfaces-container">
+          <!-- Renderizado dinamicamente via JS -->
+        </div>
+      </section>
+
+      <!-- CONNECTED DEVICES SECTION -->
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <h2 class="section-title">Dispositivos Conectados na Casa</h2>
+            <span class="section-desc">Tabela de concessões DHCP e tabela ARP ativas</span>
+          </div>
+          <div class="table-search-bar">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="device-search-input" placeholder="Buscar por Nome, IP ou MAC..." autocomplete="off">
+          </div>
+        </div>
+
+        <div class="filter-pills-row">
+          <button class="pill-btn active" data-filter="all">Todos (<span id="filter-count-all">0</span>)</button>
+          <button class="pill-btn" data-filter="pc">Computadores & Laptops</button>
+          <button class="pill-btn" data-filter="mobile">Smartphones</button>
+          <button class="pill-btn" data-filter="tv">Smart TVs & Vídeo</button>
+          <button class="pill-btn" data-filter="iot">IoT & Automação</button>
+        </div>
+
+        <div class="card table-card">
+          <div class="table-responsive">
+            <table class="data-table" id="devices-table">
+              <thead>
+                <tr>
+                  <th>Dispositivo</th>
+                  <th>Endereço IP</th>
+                  <th>Endereço MAC</th>
+                  <th>Interface</th>
+                  <th>Tipo / Comentário</th>
+                  <th>Status</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="devices-tbody">
+                <!-- Linhas preenchidas via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- SYSTEM LOGS SECTION -->
+      <section class="section-block">
+        <div class="section-heading">
+          <div>
+            <h2 class="section-title">Logs Recentes do Sistema MikroTik</h2>
+            <span class="section-desc">Eventos de DHCP, Firewall, Link de Portas e Acessos</span>
+          </div>
+          <button class="btn btn-sm btn-glass" id="btn-clear-logs-view">Limpar Visualização</button>
+        </div>
+        <div class="card logs-card">
+          <div class="logs-feed" id="logs-container">
+            <!-- Logs preenchidos via JS -->
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+      <div class="footer-left">
+        <span>CBLhomemonitor &bull; Monitor de Rede Residencial</span>
+      </div>
+      <div class="footer-right">
+        <span>Compatível com RouterOS v7.x REST API &bull; Porta 80 / 443</span>
+      </div>
+    </footer>
+  </div>
+
+  <!-- MODAL: CONFIGURAÇÃO DE CONEXÃO -->
+  <div class="modal-overlay hidden" id="settings-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <h3 class="modal-title">Configurações de Conexão MikroTik</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('settings-modal')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <form id="settings-form">
+          <div class="form-row toggle-row">
+            <div>
+              <span class="toggle-title">Modo Demonstração (Simulado)</span>
+              <p class="toggle-desc">Ative para testar a interface com tráfego e dispositivos simulados sem roteador conectado.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="cfg-demo-mode">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="cfg-router-ip">Endereço IP do MikroTik</label>
+              <input type="text" id="cfg-router-ip" placeholder="Ex: 192.168.88.1" required>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-port">Porta Web (REST API)</label>
+              <input type="number" id="cfg-port" placeholder="80 ou 443" value="80" required>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-username">Usuário</label>
+              <input type="text" id="cfg-username" placeholder="Ex: admin" required>
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-password">Senha</label>
+              <input type="password" id="cfg-password" placeholder="Senha do roteador">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-wan-interface">Nome da Interface WAN</label>
+              <input type="text" id="cfg-wan-interface" placeholder="Ex: ether1 ou pppoe-out1" value="ether1">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-poll-interval">Intervalo de Atualização (segundos)</label>
+              <input type="number" id="cfg-poll-interval" min="1" max="10" step="0.5" value="2.0">
+            </div>
+          </div>
+
+          <div class="form-row checkbox-row">
+            <label class="custom-checkbox">
+              <input type="checkbox" id="cfg-use-https">
+              <span class="checkmark"></span>
+              Utilizar HTTPS (Porta 443 / SSL)
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="cfg-verify-ssl">
+              <span class="checkmark"></span>
+              Validar Certificado SSL (desmarque para certificados autoassinados)
+            </label>
+          </div>
+
+          <!-- NOTIFICAÇÕES TELEGRAM -->
+          <div class="settings-section-divider">
+            <span class="settings-divider-title">Notificações no Telegram</span>
+          </div>
+
+          <div class="form-row toggle-row">
+            <div>
+              <span class="toggle-title">Ativar Alertas no Telegram</span>
+              <p class="toggle-desc">Receba avisos instantâneos quando o link da internet cair ou a temperatura estiver alta.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="cfg-tg-enabled">
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="form-grid" id="tg-config-fields">
+            <div class="form-group">
+              <label for="cfg-tg-token">Token do Bot (via @BotFather)</label>
+              <input type="text" id="cfg-tg-token" placeholder="Ex: 123456789:ABCdefGhIjkLmNoP...">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-tg-chat-id">Chat ID do Telegram (Seu ID ou Grupo)</label>
+              <input type="text" id="cfg-tg-chat-id" placeholder="Ex: 987654321 ou -100123456789">
+            </div>
+
+            <div class="form-group">
+              <label for="cfg-tg-temp-threshold">Limite de Temperatura para Alerta (°C)</label>
+              <input type="number" id="cfg-tg-temp-threshold" min="40" max="95" step="1" value="60">
+            </div>
+
+            <div class="form-group" style="justify-content: flex-end;">
+              <button type="button" class="btn btn-secondary btn-sm" id="btn-test-telegram" style="height: 42px;">
+                <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+                <span>Enviar Teste no Telegram</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row checkbox-row" id="tg-checkboxes">
+            <label class="custom-checkbox">
+              <input type="checkbox" id="cfg-tg-notify-wan" checked>
+              <span class="checkmark"></span>
+              Alertar quando o link da internet cair ou for restabelecido
+            </label>
+            <label class="custom-checkbox">
+              <input type="checkbox" id="cfg-tg-notify-temp" checked>
+              <span class="checkmark"></span>
+              Alertar quando a temperatura do MikroTik ultrapassar o limite
+            </label>
+          </div>
+
+          <div class="test-feedback-box hidden" id="telegram-test-feedback"></div>
+          <div class="test-feedback-box hidden" id="connection-test-feedback"></div>
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" id="btn-test-connection">Testar Conexão</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-settings">Salvar Configurações</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: PING DIAGNOSTIC TOOL -->
+  <div class="modal-overlay hidden" id="ping-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+          </svg>
+          <h3 class="modal-title">Ferramenta de Diagnóstico Ping (RouterOS /tool/ping)</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('ping-modal')">&times;</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="ping-input-bar">
+          <input type="text" id="ping-target-input" placeholder="Digite um IP ou domínio (ex: 8.8.8.8, 1.1.1.1, google.com)" value="8.8.8.8">
+          <button class="btn btn-primary" id="btn-run-ping">Disparar Ping</button>
+        </div>
+
+        <div class="ping-presets">
+          <span>Atalhos rápidos:</span>
+          <button class="preset-tag" onclick="setPingTarget('8.8.8.8')">Google DNS (8.8.8.8)</button>
+          <button class="preset-tag" onclick="setPingTarget('1.1.1.1')">Cloudflare (1.1.1.1)</button>
+          <button class="preset-tag" onclick="setPingTarget('208.67.222.222')">OpenDNS</button>
+        </div>
+
+        <div class="ping-results-panel" id="ping-results-panel">
+          <div class="empty-state">
+            <p>Clique em <strong>Disparar Ping</strong> para testar a latência da sua conexão a partir do roteador.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: GUIA DE CONFIGURAÇÃO MIKROTIK -->
+  <div class="modal-overlay hidden" id="guide-modal">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <svg class="modal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+          </svg>
+          <h3 class="modal-title">Como Habilitar a REST API no MikroTik RouterOS v7</h3>
+        </div>
+        <button class="modal-close-btn" onclick="closeModal('guide-modal')">&times;</button>
+      </div>
+
+      <div class="modal-body guide-content">
+        <p class="guide-intro">
+          O RouterOS v7 possui suporte nativo à <strong>API REST</strong> integrada ao serviço web (<code>www</code> ou <code>www-ssl</code>). Siga os 3 passos simples abaixo no terminal (Winbox ou SSH) do seu MikroTik:
+        </p>
+
+        <div class="guide-step">
+          <h4>Passo 1: Ativar o serviço Web do MikroTik</h4>
+          <p>Certifique-se de que o serviço HTTP (porta 80) ou HTTPS (porta 443) esteja ativo:</p>
+          <div class="code-box">
+            <code>/ip service enable www</code>
+            <button class="btn-copy" onclick="copyCode(this, '/ip service enable www')">Copiar</button>
+          </div>
+          <small class="guide-note">Caso queira usar SSL seguro (HTTPS): <code>/ip service enable www-ssl</code></small>
+        </div>
+
+        <div class="guide-step">
+          <h4>Passo 2: Criar um grupo de leitura seguro (Recomendado)</h4>
+          <p>Para máxima segurança, crie um usuário somente leitura dedicado ao monitoramento:</p>
+          <div class="code-box">
+            <code>/user group add name=monitor-read policy=read,test,api</code>
+            <button class="btn-copy" onclick="copyCode(this, '/user group add name=monitor-read policy=read,test,api')">Copiar</button>
+          </div>
+        </div>
+
+        <div class="guide-step">
+          <h4>Passo 3: Criar o usuário de monitoramento</h4>
+          <p>Defina o usuário e senha que serão usados neste painel:</p>
+          <div class="code-box">
+            <code>/user add name=homemonitor group=monitor-read password="SuaSenhaSegura123"</code>
+            <button class="btn-copy" onclick="copyCode(this, '/user add name=homemonitor group=monitor-read password=\"SuaSenhaSegura123\"')">Copiar</button>
+          </div>
+        </div>
+
+        <div class="guide-tip-box">
+          <strong>Pronto!</strong> Em seguida, abra a aba <em>Conexão</em> neste painel e preencha com o IP do MikroTik (ex: <code>192.168.88.1</code>), usuário <code>homemonitor</code> e a senha escolhida.
+        </div>
+
+        <div class="settings-section-divider">
+          <span class="settings-divider-title">Como Configurar Notificações no Telegram</span>
+        </div>
+
+        <div class="guide-step">
+          <h4>Passo 1: Criar o seu Bot no Telegram</h4>
+          <p>Abra o Telegram, pesquise por <strong>@BotFather</strong> e envie o comando <code>/newbot</code>. Escolha um nome e um username para o seu bot. Ele responderá com o seu <strong>Bot Token</strong> (ex: <code>7123456789:AAH...</code>).</p>
+        </div>
+
+        <div class="guide-step">
+          <h4>Passo 2: Iniciar conversa com o seu Bot</h4>
+          <p>Abra a conversa com o bot que você acabou de criar e clique em <strong>Começar</strong> ou envie <code>/start</code>. (Isso é obrigatório para autorizá-lo a te enviar mensagens).</p>
+        </div>
+
+        <div class="guide-step">
+          <h4>Passo 3: Obter o seu Chat ID</h4>
+          <p>No Telegram, pesquise pelo bot <strong>@userinfobot</strong> e envie qualquer mensagem. Ele responderá imediatamente com o seu <strong>Id</strong> numérico (ex: <code>123456789</code>).</p>
+        </div>
+
+        <div class="guide-tip-box">
+          💡 Abra o modal de <strong>Conexão</strong>, cole o <em>Token</em> e o <em>Chat ID</em>, e clique em <strong>Enviar Teste no Telegram</strong> para verificar o funcionamento!
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom JS -->
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

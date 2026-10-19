@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+  <defs>
+    <!-- Gradiente Principal Neon -->
+    <linearGradient id="cblGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff" />
+      <stop offset="100%" stop-color="#a855f7" />
+    </linearGradient>
+    
+    <!-- Gradiente Fundo Suave -->
+    <linearGradient id="cblBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(0, 240, 255, 0.15)" />
+      <stop offset="100%" stop-color="rgba(168, 85, 247, 0.15)" />
+    </linearGradient>
+
+    <!-- Brilho Neon Glow Filter -->
+    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Escudo / Hexágono Base com Borda Neon -->
+  <polygon points="24,3 43,10 43,28 24,45 5,28 5,10" 
+           fill="url(#cblBg)" 
+           stroke="url(#cblGrad)" 
+           stroke-width="2" 
+           stroke-linejoin="round" />
+
+  <!-- Silhueta Smart Home -->
+  <path d="M15 27V21L24 14L33 21V27C33 28.1 32.1 29 31 29H17C15.9 29 15 28.1 15 27Z" 
+        stroke="url(#cblGrad)" 
+        stroke-width="2" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="rgba(15, 23, 42, 0.6)" />
+
+  <!-- Chaminé / Conexão Cibernética -->
+  <line x1="29" y1="18" x2="29" y2="13" stroke="#00f0ff" stroke-width="1.8" stroke-linecap="round" />
+  <circle cx="29" cy="11.5" r="1.5" fill="#00f0ff" filter="url(#neonGlow)" />
+
+  <!-- Ondas Wi-Fi / Rede Inteligente no interior da Casa -->
+  <!-- Arco Externo -->
+  <path d="M19 23C20.4 21.6 22.1 20.8 24 20.8C25.9 20.8 27.6 21.6 29 23" 
+        stroke="#00f0ff" 
+        stroke-width="1.8" 
+        stroke-linecap="round" />
+
+  <!-- Arco Médio -->
+  <path d="M21.2 25.2C21.9 24.5 22.9 24 24 24C25.1 24 26.1 24.5 26.8 25.2" 
+        stroke="#a855f7" 
+        stroke-width="1.8" 
+        stroke-linecap="round" />
+
+  <!-- Ponto Central do Emissor -->
+  <circle cx="24" cy="27" r="1.5" fill="#00f0ff" filter="url(#neonGlow)" />
+</svg>

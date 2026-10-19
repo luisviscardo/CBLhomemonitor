@@ -1,0 +1,21 @@
+# Arquivos de Configuração Sensíveis (Senhas e Tokens)
+config.json
+
+# Banco de Dados Local com MACs e IPs da Rede Doméstica
+history.db
+history.db-journal
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+venv/
+ENV/
+
+# Sistema Operacional e IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

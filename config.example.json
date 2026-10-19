@@ -1,0 +1,17 @@
+{
+  "router_ip": "192.168.88.1",
+  "port": 80,
+  "use_https": false,
+  "verify_ssl": false,
+  "username": "admin",
+  "password": "SUA_SENHA_AQUI",
+  "wan_interface": "ether1",
+  "poll_interval": 2.0,
+  "demo_mode": false,
+  "telegram_enabled": false,
+  "telegram_bot_token": "",
+  "telegram_chat_id": "",
+  "telegram_temp_threshold": 65.0,
+  "telegram_notify_wan_down": true,
+  "telegram_notify_temp_high": true
+}
