@@ -11,7 +11,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-from config import load_config, save_config, RouterConfig, get_app_dir
+from config import load_config, save_config, RouterConfig, get_app_dir, get_resource_dir
 from autostart import is_autostart_enabled, set_autostart
 
 class SettingsWindow:
@@ -30,7 +30,9 @@ class SettingsWindow:
         self.root.configure(bg="#0b1120")
 
         # Ícone da janela
-        ico_path = get_app_dir() / "static" / "img" / "icon.ico"
+        ico_path = get_resource_dir() / "static" / "img" / "icon.ico"
+        if not ico_path.exists():
+            ico_path = get_app_dir() / "static" / "img" / "icon.ico"
         if ico_path.exists():
             try:
                 self.root.iconbitmap(str(ico_path))

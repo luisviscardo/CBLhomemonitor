@@ -7,10 +7,12 @@ echo ===================================================================
 echo.
 echo Iniciando o servico na barra de tarefas (System Tray)...
 echo.
-if exist "dist\CBLhomemonitor\CBLhomemonitor.exe" (
-    start "" "dist\CBLhomemonitor\CBLhomemonitor.exe"
+if exist "%~dp0CBLhomemonitor.exe" (
+    start "" "%~dp0CBLhomemonitor.exe"
+) else if exist "%~dp0dist\CBLhomemonitor\CBLhomemonitor.exe" (
+    start "" "%~dp0dist\CBLhomemonitor\CBLhomemonitor.exe"
 ) else (
-    start "" pythonw tray_app.py
+    start "" pythonw "%~dp0tray_app.py"
 )
 echo [OK] O CBLhomemonitor esta ativo na bandeja do sistema ao lado do relogio.
 echo Clique com o botao direito no icone para gerenciar ou configurar.

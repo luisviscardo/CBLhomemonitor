@@ -3,6 +3,7 @@ CBLhomemonitor ⚡ - Aplicativo de Barra de Tarefas (Windows System Tray)
 Gerencia o Serviço de Monitoramento em Segundo Plano, permite Iniciar, Parar,
 Configurar o MikroTik e abrir o Painel Web no navegador.
 """
+import os
 import sys
 import time
 import ctypes
@@ -12,10 +13,16 @@ import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw
 
+# Em modo compilado sem console (--windowed), stdout/stderr podem ser None, o que afeta o uvicorn
+if sys.stdout is None:
+    sys.stdout = open(os.devnull, "w", encoding="utf-8")
+if sys.stderr is None:
+    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+
 import pystray
 from pystray import MenuItem as item, Menu
 
-from config import load_config, save_config, get_app_dir, RouterConfig
+from config import load_config, save_config, get_app_dir, get_resource_dir, RouterConfig
 from autostart import is_autostart_enabled, set_autostart
 from settings_gui import SettingsWindow
 
@@ -62,7 +69,9 @@ class CBLTrayApp:
 
     def _get_icon_image(self, active: bool = True):
         """Carrega ou gera o ícone de bandeja com indicador visual de status."""
-        ico_path = get_app_dir() / "static" / "img" / "icon.png"
+        ico_path = get_resource_dir() / "static" / "img" / "icon.png"
+        if not ico_path.exists():
+            ico_path = get_app_dir() / "static" / "img" / "icon.png"
         if ico_path.exists():
             try:
                 base_img = Image.open(ico_path).convert("RGBA").resize((64, 64))

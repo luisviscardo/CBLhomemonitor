@@ -60,11 +60,21 @@ def build_executable():
         dist_dir = base_dir / "dist" / "CBLhomemonitor"
         exe_file = dist_dir / "CBLhomemonitor.exe"
         
-        # Copia config.example.json para a pasta de distribuição
-        if (base_dir / "config.example.json").exists():
-            shutil.copy(base_dir / "config.example.json", dist_dir / "config.example.json")
+        # Copia arquivos de instalação, inicialização e configuração para a pasta de distribuição
+        for filename in ["config.example.json", "install.bat", "install.ps1", "start.bat", "README.md"]:
+            src_f = base_dir / filename
+            if src_f.exists():
+                shutil.copy(src_f, dist_dir / filename)
+
         if (base_dir / "config.json").exists():
             shutil.copy(base_dir / "config.json", dist_dir / "config.json")
+
+        # Copia ícones também na raiz da distribuição para atalhos do Windows
+        dist_img_dir = dist_dir / "static" / "img"
+        dist_img_dir.mkdir(parents=True, exist_ok=True)
+        for ico_f in [ico_path, png_path]:
+            if Path(ico_f).exists():
+                shutil.copy(ico_f, dist_img_dir / Path(ico_f).name)
 
         print("\n" + "=" * 60)
         print("[OK] COMPILACAO CONCLUIDA COM SUCESSO!")

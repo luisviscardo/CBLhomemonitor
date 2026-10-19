@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
-from config import load_config, save_config, RouterConfig, get_app_dir
+from config import load_config, save_config, RouterConfig, get_app_dir, CONFIG_FILE
 from mikrotik_client import MikroTikClient
 from mock_data import get_mock_snapshot, mock_ping
 from database import (
@@ -149,13 +149,23 @@ async def background_monitoring_worker():
     Coleta dados do roteador, registra no banco SQLite, processa alertas e
     difunde em tempo real para os navegadores conectados.
     """
-    global latest_snapshot, collector_running, collector_stats
+    global latest_snapshot, collector_running, collector_stats, current_config, client
     logger.info("Iniciando serviço de monitoramento contínuo em segundo plano (24/7)...")
     collector_running = True
+    last_cfg_mtime = CONFIG_FILE.stat().st_mtime if CONFIG_FILE.exists() else 0.0
 
     while collector_running:
         t0 = time.time()
         try:
+            # Recarrega automaticamente se o arquivo config.json foi alterado pela janela de configurações
+            if CONFIG_FILE.exists():
+                curr_mtime = CONFIG_FILE.stat().st_mtime
+                if curr_mtime > last_cfg_mtime:
+                    last_cfg_mtime = curr_mtime
+                    current_config = load_config()
+                    client = MikroTikClient(current_config)
+                    logger.info("Configurações recarregadas automaticamente a partir do config.json.")
+
             if current_config.demo_mode:
                 data = get_mock_snapshot()
                 data["mode"] = "demo"

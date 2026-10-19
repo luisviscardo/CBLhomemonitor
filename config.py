@@ -11,6 +11,12 @@ def get_app_dir() -> Path:
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parent
 
+def get_resource_dir() -> Path:
+    """Retorna o diretório de recursos empacotados (suporta PyInstaller _MEIPASS e modo script)."""
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return get_app_dir()
+
 CONFIG_FILE = get_app_dir() / "config.json"
 
 class RouterConfig(BaseModel):
