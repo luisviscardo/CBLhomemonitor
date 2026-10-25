@@ -13,11 +13,11 @@ import subprocess
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-# Em modo compilado sem console (--windowed), stdout/stderr podem ser None, o que afeta o uvicorn
-if sys.stdout is None:
-    sys.stdout = open(os.devnull, "w", encoding="utf-8")
-if sys.stderr is None:
-    sys.stderr = open(os.devnull, "w", encoding="utf-8")
+log_file_path = Path(__file__).resolve().parent / "tray_app.log" if not getattr(sys, "frozen", False) else Path(sys.executable).resolve().parent / "tray_app.log"
+if sys.stdout is None or sys.stdout == open(os.devnull, "w"):
+    sys.stdout = open(log_file_path, "a", encoding="utf-8", buffering=1)
+if sys.stderr is None or sys.stderr == open(os.devnull, "w"):
+    sys.stderr = open(log_file_path, "a", encoding="utf-8", buffering=1)
 
 import pystray
 from pystray import MenuItem as item, Menu
@@ -198,6 +198,15 @@ class CBLTrayApp:
             item("❌ Sair do CBLhomemonitor", lambda: self.exit_app())
         )
 
+    def _on_ready(self, icon):
+        icon.visible = True
+        port = getattr(self.config, "server_port", 8000) or 8000
+        icon.title = f"CBLhomemonitor ⚡ - Serviço Ativo (Porta {port})"
+        try:
+            icon.notify(f"Serviço ativo na porta {port}!", "CBLhomemonitor ⚡")
+        except Exception:
+            pass
+
     def run(self):
         # Iniciar o serviço automaticamente ao abrir o tray app
         self.start_service()
@@ -210,7 +219,7 @@ class CBLTrayApp:
         )
 
         # Executa o loop de eventos da bandeja do sistema
-        self.icon.run()
+        self.icon.run(setup=self._on_ready)
 
 def main():
     # Se chamado com argumento --settings, abre apenas a janela de configurações
@@ -233,6 +242,10 @@ def main():
     app = CBLTrayApp()
     try:
         app.run()
+    except Exception as e:
+        import traceback
+        with open(log_file_path, "a", encoding="utf-8") as f:
+            f.write(f"CRASH in app.run: {e}\n{traceback.format_exc()}\n")
     finally:
         kernel32.CloseHandle(mutex)
 
