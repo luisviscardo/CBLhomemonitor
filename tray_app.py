@@ -183,7 +183,7 @@ class CBLTrayApp:
         status_label = f"🟢 Serviço: Rodando (porta {port})" if self.is_service_running() else "🔴 Serviço: Parado"
 
         return Menu(
-            item("⚡ CBLhomemonitor v1.2", lambda: None, enabled=False),
+            item("⚡ CBLhomemonitor v1.3", lambda: None, enabled=False),
             item(status_label, lambda: None, enabled=False),
             Menu.SEPARATOR,
             item("🌐 Abrir Painel de Monitoramento", lambda: self.open_dashboard(), default=True),

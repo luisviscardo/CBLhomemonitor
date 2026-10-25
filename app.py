@@ -228,7 +228,7 @@ async def lifespan(app: FastAPI):
             pass
     logger.info("Serviço de monitoramento encerrado.")
 
-app = FastAPI(title="CBLhomemonitor Service", version="1.2.0", lifespan=lifespan)
+app = FastAPI(title="CBLhomemonitor Service", version="1.3.0", lifespan=lifespan)
 
 # Montar arquivos estáticos
 STATIC_DIR.mkdir(parents=True, exist_ok=True)

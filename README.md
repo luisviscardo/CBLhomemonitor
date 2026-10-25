@@ -5,8 +5,8 @@
   <p>Serviço autônomo em segundo plano para Windows com aplicativo na barra de tarefas (System Tray), painel em tempo real e instalador facilitado.</p>
 
   <p>
-    <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.2.0-windows-x64.zip">
-      <img src="https://img.shields.io/badge/⬇️_Baixar_Release_Windows_(x64)-v1.2.0-00f0ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=0f172a" alt="Baixar Release Windows x64" />
+    <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.3.0-windows-x64.zip">
+      <img src="https://img.shields.io/badge/⬇️_Baixar_Release_Windows_(x64)-v1.3.0-00f0ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=0f172a" alt="Baixar Release Windows x64" />
     </a>
     &nbsp;
     <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest">
@@ -21,7 +21,7 @@
 
 Você **não precisa** instalar Python nem configurar nada no terminal. Basta usar a versão pronta da Release:
 
-1. **Baixe a versão pronta:** [**📥 Clique aqui para baixar `CBLhomemonitor-v1.2.0-windows-x64.zip`**](https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.2.0-windows-x64.zip) *(ou acesse a [página de Releases](https://github.com/luisviscardo/CBLhomemonitor/releases/latest))*.
+1. **Baixe a versão pronta:** [**📥 Clique aqui para baixar `CBLhomemonitor-v1.3.0-windows-x64.zip`**](https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.3.0-windows-x64.zip) *(ou acesse a [página de Releases](https://github.com/luisviscardo/CBLhomemonitor/releases/latest))*.
 2. **Extraia o arquivo `.zip`** em qualquer pasta do seu computador.
 3. **Dê um duplo clique em `install.bat`** (ou execute diretamente o `CBLhomemonitor.exe`).
 
@@ -68,6 +68,8 @@ python build_exe.py
 ## 🌟 Principais Recursos
 
 - **Serviço Contínuo 24/7 em Segundo Plano:** O monitoramento roda como um serviço autônomo, coletando dados, calculando tráfego por aparelho e vigiando a rede mesmo quando o navegador está fechado.
+- **Identificação Automática de Fabricantes (MAC Vendors API):** Reconhecimento inteligente da marca e modelo de cada aparelho da rede (Intelbras, Apple, Samsung, Xiaomi, Tuya Smart, APsystems, etc.) através de consulta à API macvendors.com, cache persistente SQLite e nomenclatura amigável.
+- **Busca Rápida de Aparelhos:** Filtre e localize qualquer dispositivo instantaneamente no painel digitando o nome do fabricante, IP, MAC ou comentário.
 - **Aplicativo na Barra de Tarefas (System Tray do Windows):** Ícone neon discreto ao lado do relógio do Windows com menu de contexto rápido para Iniciar, Parar, Reiniciar, Configurar e Iniciar com o Windows.
 - **Painel de Configurações Nativo:** Interface gráfica moderna Dark Glassmorphism para configurar MikroTik (IP, porta, HTTPS, credenciais, WAN) e Telegram com teste de conexão instantâneo.
 - **Instalação em 1 Clique:** Pacote executável standalone (`CBLhomemonitor.exe`) acompanhado do instalador automático de atalhos (`install.bat`).
