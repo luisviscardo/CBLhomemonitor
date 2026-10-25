@@ -213,6 +213,11 @@ async def lifespan(app: FastAPI):
     global collector_task, collector_running
     collector_running = True
     collector_task = asyncio.create_task(background_monitoring_worker())
+    
+    # Iniciar resolução de MACs com macvendors.com
+    from mac_vendor import mac_vendor_resolver
+    mac_vendor_resolver.start_worker()
+
     yield
     collector_running = False
     if collector_task:
@@ -416,6 +421,11 @@ async def api_telegram_test(req: TelegramTestRequest):
     )
     res = await send_telegram_message(token, chat_id, test_msg)
     return res
+
+@app.get("/api/vendors/stats")
+async def get_vendor_stats():
+    from mac_vendor import mac_vendor_resolver
+    return mac_vendor_resolver.get_stats()
 
 @app.post("/api/ping")
 async def ping_endpoint(req: PingRequest):

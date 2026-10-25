@@ -65,6 +65,15 @@ def init_db():
                 voltage REAL
             )
         """)
+
+        # Tabela de cache de fabricantes de MAC (macvendors.com)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS mac_vendor_cache (
+                mac_prefix TEXT PRIMARY KEY,
+                vendor TEXT,
+                updated_at REAL
+            )
+        """)
         conn.commit()
 
 def clear_all_history():
@@ -531,3 +540,33 @@ def get_device_consumption_ranking(period: str = "month") -> Dict[str, Any]:
             "colors": chart_colors[:len(chart_labels)]
         }
     }
+
+def get_all_cached_vendors() -> Dict[str, str]:
+    """Retorna todos os fabricantes em cache persistidos no banco SQLite."""
+    result = {}
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT mac_prefix, vendor FROM mac_vendor_cache WHERE vendor != ''")
+            for r in cursor.fetchall():
+                result[r["mac_prefix"]] = r["vendor"]
+    except Exception as e:
+        print(f"Erro ao buscar mac_vendor_cache: {e}")
+    return result
+
+def save_cached_vendor(mac_prefix: str, vendor: str):
+    """Salva ou atualiza um fabricante no banco de dados SQLite."""
+    import time
+    try:
+        with get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO mac_vendor_cache (mac_prefix, vendor, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(mac_prefix) DO UPDATE SET
+                    vendor = excluded.vendor,
+                    updated_at = excluded.updated_at
+            """, (mac_prefix.upper(), vendor, time.time()))
+            conn.commit()
+    except Exception as e:
+        print(f"Erro ao salvar mac_vendor_cache: {e}")

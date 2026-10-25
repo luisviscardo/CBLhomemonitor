@@ -50,6 +50,7 @@ def build_executable():
         "--hidden-import=httpx",
         "--hidden-import=sqlite3",
         "--hidden-import=winreg",
+        "--hidden-import=mac_vendor",
         str(base_dir / "tray_app.py")
     ]
 

@@ -3,6 +3,7 @@ import time
 import httpx
 from typing import Dict, Any, List, Optional
 from config import RouterConfig
+from mac_vendor import mac_vendor_resolver
 
 class MikroTikClient:
     def __init__(self, config: RouterConfig):
@@ -167,21 +168,21 @@ class MikroTikClient:
     def _infer_device_type(self, hostname: str, vendor: str) -> str:
         hn = (hostname or "").lower()
         vd = (vendor or "").lower()
-        if any(x in hn for x in ["iphone", "galaxy", "pixel", "redmi", "xiaomi", "moto", "android"]):
+        if any(x in hn or x in vd for x in ["iphone", "galaxy", "pixel", "redmi", "xiaomi", "moto", "android", "mobile"]):
             return "mobile"
         if any(x in hn for x in ["macbook", "laptop", "notebook", "thinkpad", "dell-nb"]):
             return "laptop"
-        if any(x in hn for x in ["desktop", "pc", "gamer", "workstation"]):
+        if any(x in hn or x in vd for x in ["desktop", "pc", "gamer", "workstation"]):
             return "pc"
-        if any(x in hn for x in ["tv", "bravia", "samsung-tv", "lg-tv", "roku", "firetv", "chromecast", "apple-tv"]):
+        if any(x in hn or x in vd for x in ["tv", "bravia", "samsung-tv", "lg-tv", "roku", "firetv", "chromecast", "apple-tv"]):
             return "tv"
-        if any(x in hn for x in ["playstation", "ps4", "ps5", "xbox", "nintendo", "switch"]):
+        if any(x in hn or x in vd for x in ["playstation", "ps4", "ps5", "xbox", "nintendo", "switch"]):
             return "game"
-        if any(x in hn for x in ["nas", "synology", "qnap", "truenas", "server"]):
+        if any(x in hn or x in vd for x in ["nas", "synology", "qnap", "truenas", "server"]):
             return "nas"
-        if any(x in hn for x in ["camera", "cam", "intelbras", "dlink", "hikvision"]):
+        if any(x in hn or x in vd for x in ["camera", "cam", "intelbras", "dlink", "hikvision"]):
             return "camera"
-        if any(x in hn for x in ["alexa", "echo", "dot", "tuya", "sonoff", "shelly", "bulb", "lamp", "plug", "sensor"]):
+        if any(x in hn or x in vd for x in ["alexa", "echo", "dot", "tuya", "sonoff", "shelly", "bulb", "lamp", "plug", "sensor", "espressif", "apsystems", "altenergy", "sweeper", "vacuum", "iot"]):
             return "iot"
         return "device"
 
@@ -202,11 +203,15 @@ class MikroTikClient:
                 mac = lease.get("mac-address", "").upper()
                 if not mac:
                     continue
-                hn = lease.get("host-name", "")
-                dev_type = self._infer_device_type(hn, "")
+                raw_hn = lease.get("host-name", "")
+                addr = lease.get("address", "")
+                vendor = mac_vendor_resolver.get_vendor(mac, hostname=raw_hn)
+                friendly_hn = mac_vendor_resolver.infer_friendly_name(raw_hn, vendor, addr, mac)
+                dev_type = self._infer_device_type(friendly_hn or raw_hn, vendor)
                 devices_by_mac[mac] = {
-                    "hostname": hn or "Dispositivo Sem Nome",
-                    "address": lease.get("address", ""),
+                    "hostname": friendly_hn,
+                    "raw_hostname": raw_hn,
+                    "address": addr,
                     "mac-address": mac,
                     "interface": lease.get("server", "LAN"),
                     "status": lease.get("status", "bound"),
@@ -214,7 +219,7 @@ class MikroTikClient:
                     "comment": lease.get("comment", ""),
                     "expires-after": lease.get("expires-after", ""),
                     "type": dev_type,
-                    "vendor": "",
+                    "vendor": vendor,
                     "rx_bytes": 0,
                     "tx_bytes": 0,
                     "total_bytes": 0,
@@ -231,17 +236,25 @@ class MikroTikClient:
                     continue
                 if mac in devices_by_mac:
                     devices_by_mac[mac]["interface"] = entry.get("interface", devices_by_mac[mac]["interface"])
+                    if not devices_by_mac[mac]["comment"]:
+                        devices_by_mac[mac]["comment"] = entry.get("comment", "")
                 else:
+                    raw_hn = entry.get("comment", "")
+                    addr = entry.get("address", "")
+                    vendor = mac_vendor_resolver.get_vendor(mac, hostname=raw_hn)
+                    friendly_hn = mac_vendor_resolver.infer_friendly_name(raw_hn, vendor, addr, mac)
+                    dev_type = self._infer_device_type(friendly_hn or raw_hn, vendor)
                     devices_by_mac[mac] = {
-                        "hostname": entry.get("comment", "Dispositivo ARP"),
-                        "address": entry.get("address", ""),
+                        "hostname": friendly_hn,
+                        "raw_hostname": raw_hn,
+                        "address": addr,
                         "mac-address": mac,
                         "interface": entry.get("interface", "LAN"),
                         "status": "active" if entry.get("complete") == "true" else "idle",
                         "dynamic": entry.get("dynamic", "true"),
                         "comment": entry.get("comment", ""),
-                        "type": "device",
-                        "vendor": "",
+                        "type": dev_type,
+                        "vendor": vendor,
                         "rx_bytes": 0,
                         "tx_bytes": 0,
                         "total_bytes": 0,

@@ -391,7 +391,8 @@ function renderDevicesTable() {
       const ip = (dev.address || '').toLowerCase();
       const mac = (dev['mac-address'] || '').toLowerCase();
       const comment = (dev.comment || '').toLowerCase();
-      return hn.includes(q) || ip.includes(q) || mac.includes(q) || comment.includes(q);
+      const vendor = (dev.vendor || '').toLowerCase();
+      return hn.includes(q) || ip.includes(q) || mac.includes(q) || comment.includes(q) || vendor.includes(q);
     }
     return true;
   });
@@ -413,6 +414,10 @@ function renderDevicesTable() {
       ? `<span class="status-badge badge-active">Dinâmico (DHCP)</span>`
       : `<span class="status-badge badge-static">Estático</span>`;
 
+    const vendorText = dev.vendor
+      ? (dev.comment && !dev.vendor.includes(dev.comment) ? `${dev.vendor} • ${dev.comment}` : dev.vendor)
+      : (dev.comment || 'Rede Local');
+
     return `
       <tr>
         <td>
@@ -421,8 +426,8 @@ function renderDevicesTable() {
               ${getDeviceSvg(dev.type)}
             </div>
             <div>
-              <span class="device-title">${escapeHtml(dev.hostname || 'Dispositivo')}</span>
-              <span class="device-vendor">${escapeHtml(dev.vendor || dev.comment || 'Rede Local')}</span>
+              <span class="device-title">${escapeHtml(dev.hostname || dev.vendor || 'Dispositivo')}</span>
+              <span class="device-vendor">${escapeHtml(vendorText)}</span>
             </div>
           </div>
         </td>
