@@ -205,6 +205,11 @@ class CBLTrayApp:
         port = getattr(self.config, "server_port", 8000) or 8000
         icon.title = f"CBLhomemonitor ⚡ - Serviço Ativo (Porta {port})"
         try:
+            with open(log_file_path, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Ícone da bandeja pronto e visível no Windows.\n")
+        except Exception:
+            pass
+        try:
             icon.notify(f"Serviço ativo na porta {port}!", "CBLhomemonitor ⚡")
         except Exception:
             pass
@@ -235,11 +240,22 @@ def main():
     mutex = kernel32.CreateMutexW(None, False, MUTEX_NAME)
     last_error = kernel32.GetLastError()
     if last_error == 183:  # ERROR_ALREADY_EXISTS
+        try:
+            with open(log_file_path, "a", encoding="utf-8") as f:
+                f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Instância anterior já em execução (Mutex ativo). Abrindo navegador...\n")
+        except Exception:
+            pass
         # Abre o navegador caso já esteja rodando
         cfg = load_config()
         port = getattr(cfg, "server_port", 8000) or 8000
         webbrowser.open(f"http://localhost:{port}")
         return
+
+    try:
+        with open(log_file_path, "a", encoding="utf-8") as f:
+            f.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Iniciando nova instância do CBLhomemonitor...\n")
+    except Exception:
+        pass
 
     app = CBLTrayApp()
     try:
