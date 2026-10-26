@@ -5,8 +5,8 @@
   <p>Serviço autônomo em segundo plano para Windows com aplicativo na barra de tarefas (System Tray), painel em tempo real e instalador facilitado.</p>
 
   <p>
-    <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.3.0-windows-x64.zip">
-      <img src="https://img.shields.io/badge/⬇️_Baixar_Release_Windows_(x64)-v1.3.0-00f0ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=0f172a" alt="Baixar Release Windows x64" />
+    <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.4.0-windows-x64.zip">
+      <img src="https://img.shields.io/badge/⬇️_Baixar_Release_Windows_(x64)-v1.4.0-00f0ff?style=for-the-badge&logo=windows&logoColor=white&labelColor=0f172a" alt="Baixar Release Windows x64" />
     </a>
     &nbsp;
     <a href="https://github.com/luisviscardo/CBLhomemonitor/releases/latest">
@@ -21,7 +21,7 @@
 
 Você **não precisa** instalar Python nem configurar nada no terminal. Basta usar a versão pronta da Release:
 
-1. **Baixe a versão pronta:** [**📥 Clique aqui para baixar `CBLhomemonitor-v1.3.0-windows-x64.zip`**](https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.3.0-windows-x64.zip) *(ou acesse a [página de Releases](https://github.com/luisviscardo/CBLhomemonitor/releases/latest))*.
+1. **Baixe a versão pronta:** [**📥 Clique aqui para baixar `CBLhomemonitor-v1.4.0-windows-x64.zip`**](https://github.com/luisviscardo/CBLhomemonitor/releases/latest/download/CBLhomemonitor-v1.4.0-windows-x64.zip) *(ou acesse a [página de Releases](https://github.com/luisviscardo/CBLhomemonitor/releases/latest))*.
 2. **Extraia o arquivo `.zip`** em qualquer pasta do seu computador.
 3. **Dê um duplo clique em `install.bat`** (ou execute diretamente o `CBLhomemonitor.exe`).
 
@@ -67,6 +67,8 @@ python build_exe.py
 
 ## 🌟 Principais Recursos
 
+- **Suporte a Múltiplos Roteadores MikroTik:** Configure múltiplos roteadores MikroTik simultaneamente no sistema e alterne entre eles instantaneamente via barra superior ou menu de configurações, com sincronização em tempo real via WebSocket.
+- **Gerenciamento do Banco de Dados SQLite:** Botão dedicado nas configurações para zerar o banco de dados e histórico com confirmação de segurança, além de prompt interativo ao salvar novas configurações.
 - **Serviço Contínuo 24/7 em Segundo Plano:** O monitoramento roda como um serviço autônomo, coletando dados, calculando tráfego por aparelho e vigiando a rede mesmo quando o navegador está fechado.
 - **Identificação Automática de Fabricantes (MAC Vendors API):** Reconhecimento inteligente da marca e modelo de cada aparelho da rede (Intelbras, Apple, Samsung, Xiaomi, Tuya Smart, APsystems, etc.) através de consulta à API macvendors.com, cache persistente SQLite e nomenclatura amigável.
 - **Busca Rápida de Aparelhos:** Filtre e localize qualquer dispositivo instantaneamente no painel digitando o nome do fabricante, IP, MAC ou comentário.

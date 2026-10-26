@@ -5,18 +5,19 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Dict, Any, Set, Optional
+from typing import Dict, Any, Set, Optional, List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import BaseModel
 
-from config import load_config, save_config, RouterConfig, get_app_dir, CONFIG_FILE
+from config import load_config, save_config, RouterConfig, MikroTikDevice, get_app_dir, CONFIG_FILE
 from mikrotik_client import MikroTikClient
 from mock_data import get_mock_snapshot, mock_ping
 from database import (
     init_db,
+    clear_all_history,
     get_daily_history,
     get_monthly_history,
     get_device_consumption_ranking,
@@ -62,6 +63,15 @@ prev_wan_rx = 0
 prev_wan_tx = 0
 last_hw_sample_time = 0.0
 device_baseline_synced = False
+
+def reset_traffic_accounting():
+    """Reseta o rastreador de deltas de tráfego (usado ao alternar roteador ou zerar histórico)."""
+    global prev_wan_rx, prev_wan_tx, last_hw_sample_time, device_baseline_synced
+    prev_wan_rx = 0
+    prev_wan_tx = 0
+    last_hw_sample_time = 0.0
+    device_baseline_synced = False
+    logger.info("Rastreamento de deltas de tráfego reinicializado.")
 
 def process_traffic_accounting(data: dict):
     global prev_wan_rx, prev_wan_tx, last_hw_sample_time, device_baseline_synced
@@ -179,6 +189,23 @@ async def background_monitoring_worker():
                     data["mode"] = "fallback"
                     data["error"] = f"Não foi possível contactar {current_config.router_ip}: {str(e)}"
 
+            # Adiciona informações dos múltiplos roteadores ao payload do dashboard
+            active_dev = current_config.get_active_router()
+            data["active_router_id"] = current_config.active_router_id
+            data["active_router_name"] = active_dev.name
+            data["routers"] = [
+                {
+                    "id": r.id,
+                    "name": r.name,
+                    "router_ip": r.router_ip,
+                    "port": r.port,
+                    "use_https": r.use_https,
+                    "wan_interface": r.wan_interface,
+                    "is_active": (r.id == current_config.active_router_id)
+                }
+                for r in current_config.routers
+            ]
+
             process_traffic_accounting(data)
             latest_snapshot = data
 
@@ -228,15 +255,33 @@ async def lifespan(app: FastAPI):
             pass
     logger.info("Serviço de monitoramento encerrado.")
 
-app = FastAPI(title="CBLhomemonitor Service", version="1.3.0", lifespan=lifespan)
+app = FastAPI(title="CBLhomemonitor Service", version="1.4.0", lifespan=lifespan)
 
 # Montar arquivos estáticos
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 TEMPLATES_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
+class RouterItemUpdate(BaseModel):
+    id: Optional[str] = None
+    name: str = "MikroTik Principal"
+    router_ip: str = "192.168.88.1"
+    port: int = 80
+    use_https: bool = False
+    verify_ssl: bool = False
+    username: str = "admin"
+    password: Optional[str] = ""
+    wan_interface: str = "ether1"
+    poll_interval: float = 2.0
+
 class ConfigUpdateRequest(BaseModel):
-    router_ip: str
+    # Suporte a múltiplos roteadores
+    routers: Optional[List[RouterItemUpdate]] = None
+    active_router_id: Optional[str] = None
+    clear_database: Optional[bool] = False
+
+    # Campos individuais do roteador ativo (retrocompatibilidade)
+    router_ip: Optional[str] = None
     port: int = 80
     use_https: bool = False
     verify_ssl: bool = False
@@ -254,6 +299,10 @@ class ConfigUpdateRequest(BaseModel):
     telegram_temp_threshold: float = 60.0
     telegram_notify_wan_down: bool = True
     telegram_notify_temp_high: bool = True
+
+class SwitchRouterRequest(BaseModel):
+    router_id: str
+    clear_database: bool = False
 
 class TelegramTestRequest(BaseModel):
     bot_token: str
@@ -279,6 +328,9 @@ async def api_service_status():
         "cycles_completed": collector_stats["cycles_completed"],
         "connected_dashboards": len(active_websockets),
         "router_ip": current_config.router_ip,
+        "active_router_id": current_config.active_router_id,
+        "active_router_name": current_config.get_active_router().name,
+        "routers_count": len(current_config.routers),
         "demo_mode": current_config.demo_mode,
         "poll_interval": current_config.poll_interval,
         "mode": latest_snapshot.get("mode", "initializing"),
@@ -290,28 +342,95 @@ async def get_current_configuration():
     cfg = current_config.model_dump()
     cfg["password_set"] = bool(cfg.get("password"))
     cfg["password"] = "••••••••" if cfg.get("password") else ""
+    
+    # Mascarar senhas na lista de roteadores
+    for r in cfg.get("routers", []):
+        r["password_set"] = bool(r.get("password"))
+        r["password"] = "••••••••" if r.get("password") else ""
+        
     return cfg
 
 @app.post("/api/config")
 async def update_configuration(new_cfg: ConfigUpdateRequest):
     global current_config, client
-    password_to_use = new_cfg.password
-    if password_to_use == "••••••••" or not password_to_use:
-        password_to_use = current_config.password
 
+    # Se o usuário optou por limpar o banco de dados ao salvar
+    if new_cfg.clear_database:
+        clear_all_history()
+        reset_traffic_accounting()
+        logger.info("Banco de dados zerado a pedido do usuário ao salvar novas configurações.")
+
+    # Mapear senhas antigas para não sobrescrever com máscara ou vazio
+    existing_pwds = {r.id: r.password for r in current_config.routers}
+
+    # Atualizar ou construir a lista de roteadores
+    updated_routers: List[MikroTikDevice] = []
+    if new_cfg.routers is not None and len(new_cfg.routers) > 0:
+        for idx, r_in in enumerate(new_cfg.routers):
+            rid = r_in.id or f"router_{int(time.time() * 1000)}_{idx}"
+            pwd = r_in.password
+            if pwd == "••••••••" or not pwd:
+                pwd = existing_pwds.get(rid, "")
+                if not pwd and rid == current_config.active_router_id:
+                    pwd = current_config.password
+
+            updated_routers.append(MikroTikDevice(
+                id=rid,
+                name=r_in.name.strip() or f"MikroTik {idx + 1}",
+                router_ip=r_in.router_ip.strip(),
+                port=r_in.port or 80,
+                use_https=r_in.use_https,
+                verify_ssl=r_in.verify_ssl,
+                username=r_in.username.strip(),
+                password=pwd,
+                wan_interface=r_in.wan_interface.strip() or "ether1",
+                poll_interval=max(1.0, float(r_in.poll_interval or 2.0))
+            ))
+    else:
+        # Caso clássico (formulário simples): atualiza o roteador ativo existente
+        active_r = current_config.get_active_router()
+        pwd_to_use = new_cfg.password
+        if pwd_to_use == "••••••••" or not pwd_to_use:
+            pwd_to_use = active_r.password or current_config.password
+
+        ip_to_use = new_cfg.router_ip.strip() if new_cfg.router_ip else active_r.router_ip
+
+        updated_active = MikroTikDevice(
+            id=active_r.id,
+            name=active_r.name,
+            router_ip=ip_to_use,
+            port=new_cfg.port,
+            use_https=new_cfg.use_https,
+            verify_ssl=new_cfg.verify_ssl,
+            username=new_cfg.username.strip() if new_cfg.username else active_r.username,
+            password=pwd_to_use,
+            wan_interface=new_cfg.wan_interface.strip() if new_cfg.wan_interface else active_r.wan_interface,
+            poll_interval=max(1.0, new_cfg.poll_interval)
+        )
+        # Substitui na lista
+        replaced = False
+        for r in current_config.routers:
+            if r.id == active_r.id:
+                updated_routers.append(updated_active)
+                replaced = True
+            else:
+                updated_routers.append(r)
+        if not replaced:
+            updated_routers.append(updated_active)
+
+    # Determinar id ativo
+    active_id = new_cfg.active_router_id or current_config.active_router_id
+    if not any(r.id == active_id for r in updated_routers):
+        active_id = updated_routers[0].id
+
+    # Telegram tokens
     token_to_use = new_cfg.telegram_bot_token.strip()
     if token_to_use == "••••••••" or (not token_to_use and current_config.telegram_bot_token):
         token_to_use = current_config.telegram_bot_token
 
     updated = RouterConfig(
-        router_ip=new_cfg.router_ip.strip(),
-        port=new_cfg.port,
-        use_https=new_cfg.use_https,
-        verify_ssl=new_cfg.verify_ssl,
-        username=new_cfg.username.strip(),
-        password=password_to_use,
-        wan_interface=new_cfg.wan_interface.strip(),
-        poll_interval=max(1.0, new_cfg.poll_interval),
+        routers=updated_routers,
+        active_router_id=active_id,
         demo_mode=new_cfg.demo_mode,
         server_port=new_cfg.server_port or 8000,
         telegram_enabled=new_cfg.telegram_enabled,
@@ -321,6 +440,7 @@ async def update_configuration(new_cfg: ConfigUpdateRequest):
         telegram_notify_wan_down=new_cfg.telegram_notify_wan_down,
         telegram_notify_temp_high=new_cfg.telegram_notify_temp_high
     )
+    updated.sync_active_fields()
 
     save_config(updated)
     current_config = updated
@@ -332,24 +452,63 @@ async def update_configuration(new_cfg: ConfigUpdateRequest):
 
     return {
         "status": "success",
-        "message": "Configurações atualizadas e aplicadas ao serviço com sucesso!",
+        "message": "Configurações salvas e aplicadas com sucesso!",
+        "database_cleared": bool(new_cfg.clear_database),
+        "active_router": current_config.get_active_router().model_dump(),
         "connection_test": connection_test,
         "demo_mode": current_config.demo_mode
+    }
+
+@app.post("/api/routers/switch")
+async def switch_router_endpoint(req: SwitchRouterRequest):
+    """Alterna rapidamente o MikroTik ativo que está sendo monitorado."""
+    global current_config, client
+    if not current_config.set_active_router(req.router_id):
+        raise HTTPException(status_code=404, detail="Roteador selecionado não foi encontrado.")
+
+    if req.clear_database:
+        clear_all_history()
+    reset_traffic_accounting()
+
+    save_config(current_config)
+    client = MikroTikClient(current_config)
+
+    logger.info(f"Roteador ativo alterado para: {current_config.get_active_router().name} ({current_config.router_ip})")
+
+    conn_test = None
+    if not current_config.demo_mode:
+        conn_test = await client.test_connection()
+
+    return {
+        "status": "success",
+        "message": f"Monitorando agora: {current_config.get_active_router().name} ({current_config.router_ip})",
+        "active_router_id": current_config.active_router_id,
+        "active_router": current_config.get_active_router().model_dump(),
+        "connection_test": conn_test
     }
 
 @app.post("/api/test-connection")
 async def test_connection_endpoint(test_cfg: ConfigUpdateRequest):
     pwd = test_cfg.password
+    ip = test_cfg.router_ip.strip() if test_cfg.router_ip else current_config.router_ip
     if pwd == "••••••••" or not pwd:
-        pwd = current_config.password
+        # Se for o mesmo IP do ativo, usa senha atual
+        if ip == current_config.router_ip:
+            pwd = current_config.password
+        else:
+            # Procura na lista de roteadores
+            for r in current_config.routers:
+                if r.router_ip == ip and r.password:
+                    pwd = r.password
+                    break
 
     temp_cfg = RouterConfig(
-        router_ip=test_cfg.router_ip.strip(),
+        router_ip=ip,
         port=test_cfg.port,
         use_https=test_cfg.use_https,
         verify_ssl=test_cfg.verify_ssl,
-        username=test_cfg.username.strip(),
-        password=pwd
+        username=test_cfg.username.strip() if test_cfg.username else "admin",
+        password=pwd or ""
     )
     temp_client = MikroTikClient(temp_cfg)
     result = await temp_client.test_connection()
@@ -399,9 +558,10 @@ async def api_device_consumption(period: str = "month"):
 async def api_clear_history():
     from database import clear_all_history
     clear_all_history()
+    reset_traffic_accounting()
     return {
         "status": "success",
-        "message": "Todo o histórico foi limpo e o monitoramento foi reinicializado."
+        "message": "Todo o histórico do banco de dados foi limpo e o monitoramento foi reinicializado com sucesso."
     }
 
 @app.post("/api/telegram/test")

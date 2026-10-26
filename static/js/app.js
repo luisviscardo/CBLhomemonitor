@@ -241,6 +241,11 @@ function updateDashboard(data) {
     demoBanner.classList.add('hidden');
   }
 
+  // Atualiza a lista e o roteador ativo no dropdown do cabeçalho
+  if (data.routers && data.routers.length > 0) {
+    updateTopRouterDropdown(data.routers, data.active_router_id);
+  }
+
   // 2. Sistema & Hardware
   const sys = data.system || {};
   document.getElementById('top-board-name').textContent = sys.board_name || 'MikroTik RouterBOARD';
@@ -510,6 +515,59 @@ function setupEventListeners() {
     await testConnection();
   });
 
+  // Gerenciamento de múltiplos MikroTiks no modal
+  const btnAddRouter = document.getElementById('btn-add-router');
+  if (btnAddRouter) btnAddRouter.addEventListener('click', addNewRouter);
+
+  const btnSetActive = document.getElementById('btn-set-active-router');
+  if (btnSetActive) btnSetActive.addEventListener('click', setActiveRouterFromModal);
+
+  const btnDeleteRouter = document.getElementById('btn-delete-router');
+  if (btnDeleteRouter) btnDeleteRouter.addEventListener('click', deleteCurrentRouter);
+
+  const modalRouterSel = document.getElementById('modal-router-selector');
+  if (modalRouterSel) {
+    modalRouterSel.addEventListener('change', (e) => {
+      flushModalFormToRouter();
+      loadRouterIntoModalForm(parseInt(e.target.value));
+    });
+  }
+
+  // Botão Limpar Banco de Dados no modal de configurações
+  const btnModalClearDb = document.getElementById('btn-modal-clear-db');
+  if (btnModalClearDb) {
+    btnModalClearDb.addEventListener('click', async () => {
+      if (!confirm('Deseja realmente limpar todo o histórico do banco de dados (consumo diário, mensal e telemetria)?\n\nEssa ação é irreversível.')) {
+        return;
+      }
+      try {
+        btnModalClearDb.disabled = true;
+        btnModalClearDb.textContent = 'Limpando...';
+        const res = await fetch('/api/history/clear', { method: 'POST' });
+        if (res.ok) {
+          alert('✅ Todo o histórico do banco de dados foi limpo com sucesso!');
+          await loadHistoryData(currentHistoryPeriod);
+          await loadDeviceConsumption(currentRankPeriod);
+          await loadHardwareHistory(currentHwTimeframe);
+        } else {
+          alert('Erro ao limpar banco de dados.');
+        }
+      } catch (e) {
+        alert('Erro de conexão ao limpar banco: ' + e.message);
+      } finally {
+        btnModalClearDb.disabled = false;
+        btnModalClearDb.innerHTML = `
+          <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18"></path>
+            <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+            <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+          </svg>
+          <span>Limpar Banco de Dados</span>
+        `;
+      }
+    });
+  }
+
   // Ping tool run
   document.getElementById('btn-run-ping').addEventListener('click', () => {
     const target = document.getElementById('ping-target-input').value.trim();
@@ -668,6 +726,176 @@ function closeModal(id) {
   if (el) el.classList.add('hidden');
 }
 
+// Variáveis de gerenciamento de múltiplos roteadores
+let configuredRouters = [];
+let activeRouterId = 'default';
+let editingRouterIndex = 0;
+
+// Atualiza o dropdown de roteadores no topo (header)
+function updateTopRouterDropdown(routers = configuredRouters, activeId = activeRouterId) {
+  const topSelect = document.getElementById('top-active-router-select');
+  if (!topSelect) return;
+
+  if (routers && routers.length > 0) {
+    configuredRouters = routers;
+    activeRouterId = activeId || (routers[0] && routers[0].id) || 'default';
+  }
+
+  const optionsHtml = configuredRouters.map(r => {
+    const isAct = (r.id === activeRouterId);
+    return `<option value="${r.id}" ${isAct ? 'selected' : ''}>${escapeHtml(r.name || 'MikroTik')} (${escapeHtml(r.router_ip)})</option>`;
+  }).join('');
+
+  if (topSelect.innerHTML !== optionsHtml) {
+    topSelect.innerHTML = optionsHtml;
+  }
+  topSelect.value = activeRouterId;
+}
+
+// Atualiza o seletor de roteadores e os botões dentro do modal de configurações
+function updateModalRouterDropdown() {
+  const sel = document.getElementById('modal-router-selector');
+  if (!sel) return;
+
+  sel.innerHTML = configuredRouters.map((r, i) => {
+    const isAct = (r.id === activeRouterId);
+    const tag = isAct ? ' [ATIVO]' : '';
+    return `<option value="${i}" ${i === editingRouterIndex ? 'selected' : ''}>${escapeHtml(r.name || 'MikroTik')} (${escapeHtml(r.router_ip)})${tag}</option>`;
+  }).join('');
+
+  const curr = configuredRouters[editingRouterIndex];
+  const badge = document.getElementById('modal-router-badge');
+  const btnSetActive = document.getElementById('btn-set-active-router');
+  const btnDelete = document.getElementById('btn-delete-router');
+
+  if (curr && curr.id === activeRouterId) {
+    if (badge) {
+      badge.className = 'router-badge';
+      badge.textContent = '🟢 Roteador Ativo no Monitor';
+    }
+    if (btnSetActive) btnSetActive.disabled = true;
+  } else {
+    if (badge) {
+      badge.className = 'router-badge badge-inactive';
+      badge.textContent = '⚪ Roteador Secundário';
+    }
+    if (btnSetActive) btnSetActive.disabled = false;
+  }
+
+  if (btnDelete) {
+    btnDelete.disabled = (configuredRouters.length <= 1);
+  }
+}
+
+// Sincroniza o formulário visível do modal para o objeto em memória
+function flushModalFormToRouter() {
+  if (!configuredRouters[editingRouterIndex]) return;
+  const r = configuredRouters[editingRouterIndex];
+  r.name = document.getElementById('cfg-router-name').value.trim() || `MikroTik ${editingRouterIndex + 1}`;
+  r.router_ip = document.getElementById('cfg-router-ip').value.trim() || '192.168.88.1';
+  r.port = parseInt(document.getElementById('cfg-port').value) || 80;
+  r.username = document.getElementById('cfg-username').value.trim() || 'admin';
+  r.password = document.getElementById('cfg-password').value;
+  r.wan_interface = document.getElementById('cfg-wan-interface').value.trim() || 'ether1';
+  r.poll_interval = parseFloat(document.getElementById('cfg-poll-interval').value) || 2.0;
+  r.use_https = document.getElementById('cfg-use-https').checked;
+  r.verify_ssl = document.getElementById('cfg-verify-ssl').checked;
+}
+
+// Carrega os dados de um roteador da lista nos campos do modal
+function loadRouterIntoModalForm(index) {
+  if (!configuredRouters[index]) return;
+  editingRouterIndex = index;
+  const r = configuredRouters[index];
+
+  document.getElementById('cfg-router-name').value = r.name || '';
+  document.getElementById('cfg-router-ip').value = r.router_ip || '';
+  document.getElementById('cfg-port').value = r.port || 80;
+  document.getElementById('cfg-username').value = r.username || 'admin';
+  document.getElementById('cfg-password').value = r.password || '';
+  document.getElementById('cfg-wan-interface').value = r.wan_interface || 'ether1';
+  document.getElementById('cfg-poll-interval').value = r.poll_interval || 2.0;
+  document.getElementById('cfg-use-https').checked = !!r.use_https;
+  document.getElementById('cfg-verify-ssl').checked = !!r.verify_ssl;
+
+  updateModalRouterDropdown();
+}
+
+// Adiciona um novo roteador à lista
+function addNewRouter() {
+  flushModalFormToRouter();
+  const count = configuredRouters.length + 1;
+  const newDevice = {
+    id: 'router_' + Date.now(),
+    name: `MikroTik ${count}`,
+    router_ip: '192.168.88.1',
+    port: 80,
+    username: 'admin',
+    password: '',
+    wan_interface: 'ether1',
+    poll_interval: 2.0,
+    use_https: false,
+    verify_ssl: false
+  };
+  configuredRouters.push(newDevice);
+  loadRouterIntoModalForm(configuredRouters.length - 1);
+  updateTopRouterDropdown();
+}
+
+// Define o roteador atualmente em edição como o ativo
+function setActiveRouterFromModal() {
+  flushModalFormToRouter();
+  const curr = configuredRouters[editingRouterIndex];
+  if (curr) {
+    activeRouterId = curr.id;
+    updateModalRouterDropdown();
+    updateTopRouterDropdown();
+  }
+}
+
+// Remove o roteador selecionado
+function deleteCurrentRouter() {
+  if (configuredRouters.length <= 1) {
+    alert('É necessário manter pelo menos um roteador configurado.');
+    return;
+  }
+  const curr = configuredRouters[editingRouterIndex];
+  if (!confirm(`Deseja realmente remover o roteador "${curr.name}" (${curr.router_ip})?`)) {
+    return;
+  }
+  const wasActive = (curr.id === activeRouterId);
+  configuredRouters.splice(editingRouterIndex, 1);
+  if (wasActive) {
+    activeRouterId = configuredRouters[0].id;
+  }
+  editingRouterIndex = Math.max(0, editingRouterIndex - 1);
+  loadRouterIntoModalForm(editingRouterIndex);
+  updateTopRouterDropdown();
+}
+
+// Alterna o roteador ativo diretamente pelo select do cabeçalho
+async function switchActiveRouterFromTop(routerId) {
+  if (!routerId || routerId === activeRouterId) return;
+  try {
+    const res = await fetch('/api/routers/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ router_id: routerId, clear_database: false })
+    });
+    if (res.ok) {
+      activeRouterId = routerId;
+      await loadCurrentSettings();
+      await loadHistoryData(currentHistoryPeriod);
+      await loadDeviceConsumption(currentRankPeriod);
+      await loadHardwareHistory(currentHwTimeframe);
+    } else {
+      alert('Não foi possível alternar para o roteador selecionado.');
+    }
+  } catch (err) {
+    console.error('Erro ao alternar roteador:', err);
+  }
+}
+
 // Carregar Configurações Atuais no Form
 async function loadCurrentSettings() {
   try {
@@ -675,17 +903,35 @@ async function loadCurrentSettings() {
     if (!res.ok) return;
     const cfg = await res.json();
 
-    document.getElementById('cfg-router-ip').value = cfg.router_ip || '';
-    document.getElementById('cfg-port').value = cfg.port || 80;
-    document.getElementById('cfg-username').value = cfg.username || '';
-    document.getElementById('cfg-wan-interface').value = cfg.wan_interface || 'ether1';
-    document.getElementById('cfg-poll-interval').value = cfg.poll_interval || 2.0;
-    document.getElementById('cfg-use-https').checked = !!cfg.use_https;
-    document.getElementById('cfg-verify-ssl').checked = !!cfg.verify_ssl;
-    document.getElementById('cfg-demo-mode').checked = !!cfg.demo_mode;
-    if (cfg.password) {
-      document.getElementById('cfg-password').value = cfg.password;
+    // Carregar lista de roteadores
+    if (cfg.routers && cfg.routers.length > 0) {
+      configuredRouters = cfg.routers;
+      activeRouterId = cfg.active_router_id || configuredRouters[0].id;
+    } else {
+      configuredRouters = [{
+        id: 'default',
+        name: 'MikroTik Principal',
+        router_ip: cfg.router_ip || '192.168.88.1',
+        port: cfg.port || 80,
+        username: cfg.username || 'admin',
+        password: cfg.password || '',
+        wan_interface: cfg.wan_interface || 'ether1',
+        poll_interval: cfg.poll_interval || 2.0,
+        use_https: !!cfg.use_https,
+        verify_ssl: !!cfg.verify_ssl
+      }];
+      activeRouterId = 'default';
     }
+
+    // Identificar índice do ativo para abrir por padrão
+    let idxToEdit = 0;
+    const foundIdx = configuredRouters.findIndex(r => r.id === activeRouterId);
+    if (foundIdx >= 0) idxToEdit = foundIdx;
+
+    updateTopRouterDropdown();
+    loadRouterIntoModalForm(idxToEdit);
+
+    document.getElementById('cfg-demo-mode').checked = !!cfg.demo_mode;
 
     // Telegram
     document.getElementById('cfg-tg-enabled').checked = !!cfg.telegram_enabled;
@@ -701,19 +947,23 @@ async function loadCurrentSettings() {
 
 // Salvar Configurações
 async function saveSettings() {
+  flushModalFormToRouter();
+
   const saveBtn = document.getElementById('btn-save-settings');
   saveBtn.disabled = true;
   saveBtn.textContent = 'Salvando...';
 
+  // Pergunta ao usuário se deseja limpar o banco de dados ao salvar a configuração
+  const shouldClear = confirm(
+    'Deseja também LIMPAR O BANCO DE DADOS (zerar histórico de consumo e telemetria) ao salvar a nova configuração?\n\n' +
+    '• Clique em OK para zerar o banco de dados SQLite.\n' +
+    '• Clique em Cancelar para salvar mantendo os dados históricos existentes.'
+  );
+
   const payload = {
-    router_ip: document.getElementById('cfg-router-ip').value.trim(),
-    port: parseInt(document.getElementById('cfg-port').value) || 80,
-    username: document.getElementById('cfg-username').value.trim(),
-    password: document.getElementById('cfg-password').value,
-    wan_interface: document.getElementById('cfg-wan-interface').value.trim(),
-    poll_interval: parseFloat(document.getElementById('cfg-poll-interval').value) || 2.0,
-    use_https: document.getElementById('cfg-use-https').checked,
-    verify_ssl: document.getElementById('cfg-verify-ssl').checked,
+    routers: configuredRouters,
+    active_router_id: activeRouterId,
+    clear_database: shouldClear,
     demo_mode: document.getElementById('cfg-demo-mode').checked,
     telegram_enabled: document.getElementById('cfg-tg-enabled').checked,
     telegram_bot_token: document.getElementById('cfg-tg-token').value.trim(),
@@ -733,13 +983,21 @@ async function saveSettings() {
 
     const fb = document.getElementById('connection-test-feedback');
     fb.className = 'test-feedback-box success';
-    fb.textContent = 'Configurações salvas! Atualizando conexão...';
+    fb.textContent = 'Configurações salvas e aplicadas!' + (shouldClear ? ' (Banco de dados zerado com sucesso)' : '');
     fb.classList.remove('hidden');
+
+    if (shouldClear) {
+      await loadHistoryData(currentHistoryPeriod);
+      await loadDeviceConsumption(currentRankPeriod);
+      await loadHardwareHistory(currentHwTimeframe);
+    }
 
     setTimeout(() => {
       closeModal('settings-modal');
       fb.classList.add('hidden');
     }, 1200);
+
+    await loadCurrentSettings();
   } catch (e) {
     alert('Erro ao salvar: ' + e.message);
   } finally {

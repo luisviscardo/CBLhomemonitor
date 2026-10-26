@@ -89,6 +89,18 @@
           <span class="pill-val" id="top-uptime">--</span>
         </div>
 
+        <div class="info-pill router-selector-pill" title="Alternar Roteador MikroTik Ativo">
+          <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+          <select id="top-active-router-select" class="router-top-dropdown" onchange="switchActiveRouterFromTop(this.value)">
+            <option value="default">MikroTik Principal</option>
+          </select>
+        </div>
+
         <div class="info-pill" title="Versão do RouterOS">
           <svg class="pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
@@ -637,7 +649,34 @@
             </label>
           </div>
 
+          <!-- GERENCIAMENTO DE MÚLTIPLOS MIKROTIKS -->
+          <div class="settings-section-divider">
+            <span class="settings-divider-title">Lista de Roteadores MikroTik</span>
+          </div>
+
+          <div class="router-manager-box">
+            <div class="router-manager-header">
+              <div class="router-select-wrap">
+                <label for="modal-router-selector" class="field-label-sm">Roteador Selecionado:</label>
+                <select id="modal-router-selector" class="modal-router-dropdown"></select>
+              </div>
+              <div class="router-action-btns">
+                <button type="button" class="btn btn-sm btn-glass" id="btn-add-router" title="Adicionar Novo MikroTik">➕ Novo</button>
+                <button type="button" class="btn btn-sm btn-glass btn-warning-subtle" id="btn-set-active-router" title="Definir como Roteador Ativo do Monitor">⭐ Tornar Ativo</button>
+                <button type="button" class="btn btn-sm btn-glass btn-danger-subtle" id="btn-delete-router" title="Remover Roteador">🗑️ Excluir</button>
+              </div>
+            </div>
+            <div class="router-active-tag-row">
+              <span class="router-badge" id="modal-router-badge">🟢 Roteador Ativo no Monitor</span>
+            </div>
+          </div>
+
           <div class="form-grid">
+            <div class="form-group form-group-full">
+              <label for="cfg-router-name">Nome / Apelido do Roteador</label>
+              <input type="text" id="cfg-router-name" placeholder="Ex: MikroTik Principal ou Escritório" required>
+            </div>
+
             <div class="form-group">
               <label for="cfg-router-ip">Endereço IP do MikroTik</label>
               <input type="text" id="cfg-router-ip" placeholder="Ex: 192.168.88.1" required>
@@ -736,6 +775,26 @@
               <span class="checkmark"></span>
               Alertar quando a temperatura do MikroTik ultrapassar o limite
             </label>
+          </div>
+
+          <!-- BANCO DE DADOS & HISTÓRICO -->
+          <div class="settings-section-divider">
+            <span class="settings-divider-title">Banco de Dados SQLite & Histórico</span>
+          </div>
+
+          <div class="db-management-card">
+            <div class="db-info-content">
+              <span class="db-info-title">Zerar Histórico e Telemetria</span>
+              <p class="db-info-desc">Limpa completamente todo o histórico de tráfego diário, mensal e métricas de hardware gravadas localmente no SQLite. Útil ao trocar de roteador ou reiniciar contagens.</p>
+            </div>
+            <button type="button" class="btn btn-danger-subtle" id="btn-modal-clear-db">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 6h18"></path>
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path>
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path>
+              </svg>
+              <span>Limpar Banco de Dados</span>
+            </button>
           </div>
 
           <div class="test-feedback-box hidden" id="telegram-test-feedback"></div>

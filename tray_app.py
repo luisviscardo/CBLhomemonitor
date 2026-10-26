@@ -14,10 +14,12 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 
 log_file_path = Path(__file__).resolve().parent / "tray_app.log" if not getattr(sys, "frozen", False) else Path(sys.executable).resolve().parent / "tray_app.log"
-if sys.stdout is None or sys.stdout == open(os.devnull, "w"):
-    sys.stdout = open(log_file_path, "a", encoding="utf-8", buffering=1)
-if sys.stderr is None or sys.stderr == open(os.devnull, "w"):
-    sys.stderr = open(log_file_path, "a", encoding="utf-8", buffering=1)
+try:
+    _log_file = open(log_file_path, "a", encoding="utf-8", buffering=1)
+    sys.stdout = _log_file
+    sys.stderr = _log_file
+except Exception:
+    pass
 
 import pystray
 from pystray import MenuItem as item, Menu
@@ -183,7 +185,7 @@ class CBLTrayApp:
         status_label = f"🟢 Serviço: Rodando (porta {port})" if self.is_service_running() else "🔴 Serviço: Parado"
 
         return Menu(
-            item("⚡ CBLhomemonitor v1.3", lambda: None, enabled=False),
+            item("⚡ CBLhomemonitor v1.4", lambda: None, enabled=False),
             item(status_label, lambda: None, enabled=False),
             Menu.SEPARATOR,
             item("🌐 Abrir Painel de Monitoramento", lambda: self.open_dashboard(), default=True),

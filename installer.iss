@@ -1,14 +1,14 @@
 ; Script de Instalação Profissional Inno Setup para o CBLhomemonitor
-; Gera o arquivo executável 'CBLhomemonitor_Setup_v1.3.exe'
+; Gera o arquivo executável 'CBLhomemonitor_Setup_v1.4.exe'
 
 #define MyAppName "CBLhomemonitor"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "CBL Tecnologia"
 #define MyAppURL "https://github.com/luisviscardo/CBLhomemonitor"
 #define MyAppExeName "CBLhomemonitor.exe"
 
 [Setup]
-AppId={{8B5C3F9D-42A1-4E68-9A7D-CBLHOMEMON13}}
+AppId={{8B5C3F9D-42A1-4E68-9A7D-CBLHOMEMON14}}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
@@ -19,7 +19,7 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=dist
-OutputBaseFilename=CBLhomemonitor_Setup_v1.3
+OutputBaseFilename=CBLhomemonitor_Setup_v1.4
 SetupIconFile=static\img\icon.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
